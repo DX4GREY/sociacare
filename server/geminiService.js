@@ -119,6 +119,33 @@ function detectClosingIntent(text) {
   return CLOSING_PATTERNS.some((regex) => regex.test(raw));
 }
 
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
+const BACKOFF_DELAYS = [2000, 4000, 8000]; // Jeda 2 detik, 4 detik, 8 detik (Exponential Backoff)
+const MODEL_FALLBACK_CHAIN = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+];
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isTransientNetworkError(err) {
+  if (!err) return false;
+  const msg = (err.message || '').toLowerCase();
+  const code = (err.code || '').toLowerCase();
+  return (
+    code === 'econnreset' ||
+    code === 'etimedout' ||
+    code === 'enotfound' ||
+    code === 'eai_again' ||
+    msg.includes('timeout') ||
+    msg.includes('network') ||
+    msg.includes('socket hang up') ||
+    msg.includes('econnreset')
+  );
+}
+
 /**
  * Generates a fast, real-time SociaCare AI counselor response powered by Google Gemini,
  * returning both the structured reply (including AI emergency detection & AI conversation closing) and token usage metadata.
@@ -145,14 +172,14 @@ async function generateCounselorResponse({
     nextStage = topic.screenNumber;
   }
 
-  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY belum dikonfigurasi di server/.env');
-  }
-
   const keywordEmergency = !isClosingRequested && detectSevereEmergencyKeywords(userMessage);
 
   try {
+    const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+    if (!apiKey) {
+      throw new Error('GEMINI_API_KEY belum dikonfigurasi di server/.env');
+    }
+
     const geminiResult = await callGeminiApi({
       apiKey,
       topic,
@@ -174,6 +201,8 @@ async function generateCounselorResponse({
       nextStage: finalIsClosing ? 9 : nextStage === 3 ? 35 : nextStage,
     };
   } catch (err) {
+    console.error(`[SociaCare AI Fallback] Error saat memproses Gemini: ${err.message}`);
+
     if (isClosingRequested) {
       return {
         content: REFLECTION_CLOSING.intro,
@@ -189,10 +218,84 @@ async function generateCounselorResponse({
           emergencyWarning: '',
         },
         nextStage: 9,
-        usage: null,
+        usage: {
+          modelName: 'local-closing-fallback',
+          promptTokens: 0,
+          completionTokens: 0,
+          thoughtTokens: 0,
+          totalTokens: 0,
+          latencyMs: 0,
+        },
       };
     }
-    throw err;
+
+    if (keywordEmergency) {
+      return {
+        content: `Halo ${userName || 'Teman'}, aku mendengar betapa beratnya beban yang kamu rasakan saat ini. Keselamatan dan hidupmu sangatlah berharga. Tolong jangan simpan beban ini sendirian. Aku ada di sini untuk mendampingimu, dan sangat penting bagimu untuk segera berbicara dengan Guru BK atau layanan bantuan darurat sekarang juga.`,
+        structured: {
+          checklist: [
+            'Tarik napas perlahan dan letakkan benda berbahaya dari jangkauanmu.',
+            'Cari orang terpercaya atau guru BK di sekitarmu sekarang juga.',
+            'Hubungi hotline konseling darurat 119 ext 8 jika membutuhkan bantuan segera.',
+          ],
+          tipBox: {
+            title: 'Pesan Keselamatan:',
+            text: 'Kamu tidak sendirian. Ada orang-orang yang peduli dan siap membantumu melewati saat-saat paling sulit ini.',
+          },
+          footerText: 'Maukah kamu menghubungi Guru BK atau orang terdekatmu sekarang?',
+          quickReplies: ['Hubungi Guru BK', 'Aku akan mencari tempat aman', 'Tolong temani aku'],
+          isClosing: false,
+          isEmergency: true,
+          emergencyLevel: 'critical',
+          emergencyReason: `Terdeteksi indikasi krisis darurat dari kata kunci: "${String(userMessage || '').slice(0, 100)}"`,
+          emergencyWarning: `PERINGATAN DARURAT: Halo ${userName || 'Teman'}, sistem mendeteksi kamu sedang dalam situasi krisis yang sangat membahayakan keselamatan. Tolong segera temui Guru BK atau hubungi hotline 119 ext 8.`,
+        },
+        nextStage: 4,
+        usage: {
+          modelName: 'local-emergency-fallback',
+          promptTokens: 0,
+          completionTokens: 0,
+          thoughtTokens: 0,
+          totalTokens: 0,
+          latencyMs: 0,
+        },
+      };
+    }
+
+    // Safe fallback jika semua model Gemini gagal / timeout / transient error tak terselesaikan
+    const topicSolutions = topic.generalSolution || {};
+    return {
+      content: `Halo ${userName || 'Teman'}, terima kasih sudah berbagi cerita dengan jujur. Aku sangat mengapresiasi keberanianmu mengekspresikan apa yang kamu rasakan tentang "${topic.title}". Meskipun jaringan sedang dalam penyesuaian otomatis, aku ingin kamu tahu bahwa perasaanmu valid dan kamu tidak sendirian.`,
+      structured: {
+        checklist: Array.isArray(topicSolutions.checklist) && topicSolutions.checklist.length > 0
+          ? topicSolutions.checklist
+          : [
+              'Tarik napas perlahan dan tenangkan pikiran sejenak.',
+              'Identifikasi hal kecil yang paling bisa kamu kendalikan hari ini.',
+              'Diskusikan dengan teman terpercaya atau Guru BK jika terasa semakin berat.',
+            ],
+        tipBox: topic.topicSpecificSolution?.tipBox || {
+          title: 'Tips Pendukung:',
+          text: 'Setiap proses butuh waktu. Yang terpenting kamu tidak memendam masalah ini sendirian.',
+        },
+        footerText: 'Bagaimana perasaanmu sekarang? Apakah ingin melanjutkan bercerita atau menghubungi Guru BK?',
+        quickReplies: ['Ceritakan lebih detail', 'Hubungi Guru BK', 'Tutup Pembicaraan'],
+        isClosing: false,
+        isEmergency: false,
+        emergencyLevel: 'normal',
+        emergencyReason: '',
+        emergencyWarning: '',
+      },
+      nextStage: nextStage === 3 ? 35 : nextStage,
+      usage: {
+        modelName: 'local-counselor-fallback',
+        promptTokens: 0,
+        completionTokens: 0,
+        thoughtTokens: 0,
+        totalTokens: 0,
+        latencyMs: 0,
+      },
+    };
   }
 }
 
@@ -271,147 +374,191 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
     },
   ];
 
-  const modelsToTry = ['gemini-3.1-flash-live-preview', 'gemini-3.5-flash-lite'];
   let lastError = null;
 
-  for (const modelName of modelsToTry) {
-    const t0 = Date.now();
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
-      apiKey
-    )}`;
+  for (let mIdx = 0; mIdx < MODEL_FALLBACK_CHAIN.length; mIdx++) {
+    const modelName = MODEL_FALLBACK_CHAIN[mIdx];
+    const nextModel = MODEL_FALLBACK_CHAIN[mIdx + 1];
 
-    const res = await postJsonIPv4(url, {
-      systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents,
-      generationConfig: {
-        temperature: 0.7,
-        responseMimeType: 'application/json',
-      },
-    });
+    for (let attempt = 1; attempt <= BACKOFF_DELAYS.length; attempt++) {
+      const t0 = Date.now();
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
+        apiKey
+      )}`;
 
-    const latencyMs = Date.now() - t0;
+      try {
+        const res = await postJsonIPv4(url, {
+          systemInstruction: { parts: [{ text: systemPrompt }] },
+          contents,
+          generationConfig: {
+            temperature: 0.7,
+            responseMimeType: 'application/json',
+          },
+        });
 
-    if (!res.ok) {
-      lastError = new Error(`Gemini API (${modelName}) HTTP ${res.status}: ${res.text}`);
-      continue;
-    }
+        const latencyMs = Date.now() - t0;
 
-    const data = JSON.parse(res.text);
-    const parts = data?.candidates?.[0]?.content?.parts || [];
-    const textPart =
-      [...parts].reverse().find((p) => typeof p.text === 'string' && !p.thought) ||
-      parts.find((p) => typeof p.text === 'string');
+        if (!res.ok) {
+          const isTransient = RETRYABLE_STATUS_CODES.has(res.status);
+          const errorMsg = `Gemini API (${modelName}) HTTP ${res.status}: ${res.text}`;
+          lastError = new Error(errorMsg);
 
-    if (!textPart || !textPart.text) {
-      continue;
-    }
+          if (isTransient && attempt < BACKOFF_DELAYS.length) {
+            const delay = BACKOFF_DELAYS[attempt - 1];
+            console.warn(
+              `[SociaCare AI Backoff] HTTP ${res.status} pada ${modelName} (Percobaan ${attempt}/${BACKOFF_DELAYS.length}). Menunggu jeda ${delay / 1000}s sebelum retry otomatis...`
+            );
+            await sleep(delay);
+            continue;
+          }
 
-    const usageMeta = data?.usageMetadata || {};
-    const promptTokens = Number(usageMeta.promptTokenCount || 0);
-    const completionTokens = Number(usageMeta.candidatesTokenCount || 0);
-    const thoughtTokens = Number(usageMeta.thoughtsTokenCount || 0);
-    const totalTokens = Number(
-      usageMeta.totalTokenCount || promptTokens + completionTokens + thoughtTokens
-    );
+          console.warn(
+            `[SociaCare AI Fallback] Model ${modelName} gagal setelah ${attempt} percobaan (HTTP ${res.status}). ${
+              nextModel ? `Mengalihkan request ke model alternatif ${nextModel}...` : 'Tidak ada model alternatif tersisa.'
+            }`
+          );
+          break; // Keluar dari loop retry attempt, beralih ke model fallback berikutnya
+        }
 
-    const cleaned = textPart.text
-      .trim()
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/, '');
+        const data = JSON.parse(res.text);
+        const parts = data?.candidates?.[0]?.content?.parts || [];
+        const textPart =
+          [...parts].reverse().find((p) => typeof p.text === 'string' && !p.thought) ||
+          parts.find((p) => typeof p.text === 'string');
 
-    let parsed;
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = {
-        intro: textPart.text.trim(),
-        checklist: [],
-        tipBox: null,
-        footerText: '',
-        quickReplies: ['Masih ada', 'Tidak, cukup'],
-      };
-    }
+        if (!textPart || !textPart.text) {
+          lastError = new Error(`Format respons model ${modelName} tidak berisi teks valid.`);
+          console.warn(`[SociaCare AI Fallback] ${lastError.message}. Beralih ke model alternatif...`);
+          break;
+        }
 
-    const isClosingDetected = Boolean(
-      isClosingRequested || parsed.isClosing
-    );
+        const usageMeta = data?.usageMetadata || {};
+        const promptTokens = Number(usageMeta.promptTokenCount || 0);
+        const completionTokens = Number(usageMeta.candidatesTokenCount || 0);
+        const thoughtTokens = Number(usageMeta.thoughtsTokenCount || 0);
+        const totalTokens = Number(
+          usageMeta.totalTokenCount || promptTokens + completionTokens + thoughtTokens
+        );
 
-    const isEmergencyDetected =
-      !isClosingDetected &&
-      Boolean(
-        parsed.isEmergency ||
-          parsed.emergencyLevel === 'critical' ||
-          keywordEmergency
-      );
+        const cleaned = textPart.text
+          .trim()
+          .replace(/^```json\s*/i, '')
+          .replace(/^```\s*/i, '')
+          .replace(/\s*```$/, '');
 
-    const emergencyWarningText = isEmergencyDetected
-      ? parsed.emergencyWarning ||
-        `PERINGATAN DARURAT AI: Halo ${
-          userName || 'Teman'
-        }, sistem SociaCare AI mendeteksi kamu sedang berada dalam kondisi yang sangat berat dan darurat. Keselamatan dan nyawamu sangatlah berharga. Mohon jangan hadapi ini sendirian dan segera hubungi Konselor / Guru BK atau layanan darurat 119 ext 8.`
-      : '';
+        let parsed;
+        try {
+          parsed = JSON.parse(cleaned);
+        } catch {
+          parsed = {
+            intro: textPart.text.trim(),
+            checklist: [],
+            tipBox: null,
+            footerText: '',
+            quickReplies: ['Masih ada', 'Tidak, cukup'],
+          };
+        }
 
-    const emergencyReasonText = isEmergencyDetected
-      ? parsed.emergencyReason ||
-        `Terdeteksi indikasi krisis darurat / kondisi sangat parah dari pesan pengguna: "${String(
-          userMessage || ''
-        ).slice(0, 120)}"`
-      : '';
+        const isClosingDetected = Boolean(
+          isClosingRequested || parsed.isClosing
+        );
 
-    const defaultQuickReplies = isClosingDetected
-      ? ['Selesai & Penutup 💙', 'Pilih Topik Baru', 'Fitur Lainnya']
-      : isEmergencyDetected
-      ? [
-          '🚨 Hubungi Guru BK',
-          'Aku butuh ditemani sekarang',
-          'Aku akan mencari tempat aman',
-        ]
-      : ['Masih ada', 'Tutup Pembicaraan'];
+        const isEmergencyDetected =
+          !isClosingDetected &&
+          Boolean(
+            parsed.isEmergency ||
+              parsed.emergencyLevel === 'critical' ||
+              keywordEmergency
+          );
 
-    return {
-      content: parsed.intro || textPart.text.trim(),
-      structured: {
-        checklist: isClosingDetected
-          ? []
-          : Array.isArray(parsed.checklist)
-          ? parsed.checklist
-          : [],
-        tipBox:
-          !isClosingDetected && parsed.tipBox && parsed.tipBox.text
-            ? parsed.tipBox
-            : null,
-        footerText: parsed.footerText || '',
-        quickReplies: isClosingDetected
+        const emergencyWarningText = isEmergencyDetected
+          ? parsed.emergencyWarning ||
+            `PERINGATAN DARURAT AI: Halo ${
+              userName || 'Teman'
+            }, sistem SociaCare AI mendeteksi kamu sedang berada dalam kondisi yang sangat berat dan darurat. Keselamatan dan nyawamu sangatlah berharga. Mohon jangan hadapi ini sendirian dan segera hubungi Konselor / Guru BK atau layanan darurat 119 ext 8.`
+          : '';
+
+        const emergencyReasonText = isEmergencyDetected
+          ? parsed.emergencyReason ||
+            `Terdeteksi indikasi krisis darurat / kondisi sangat parah dari pesan pengguna: "${String(
+              userMessage || ''
+            ).slice(0, 120)}"`
+          : '';
+
+        const defaultQuickReplies = isClosingDetected
           ? ['Selesai & Penutup 💙', 'Pilih Topik Baru', 'Fitur Lainnya']
           : isEmergencyDetected
           ? [
-              'Hubungi Guru BK',
-              ...(Array.isArray(parsed.quickReplies)
-                ? parsed.quickReplies.filter((q) => q !== 'Hubungi Guru BK').slice(0, 2)
-                : ['Aku butuh ditemani sekarang']),
+              '🚨 Hubungi Guru BK',
+              'Aku butuh ditemani sekarang',
+              'Aku akan mencari tempat aman',
             ]
-          : Array.isArray(parsed.quickReplies) && parsed.quickReplies.length > 0
-          ? parsed.quickReplies
-          : defaultQuickReplies,
-        isClosing: isClosingDetected,
-        isEmergency: isEmergencyDetected,
-        emergencyLevel: isEmergencyDetected ? 'critical' : 'normal',
-        emergencyWarning: emergencyWarningText,
-        emergencyReason: emergencyReasonText,
-      },
-      usage: {
-        modelName: data?.modelVersion || modelName,
-        promptTokens,
-        completionTokens,
-        thoughtTokens,
-        totalTokens,
-        latencyMs,
-      },
-    };
+          : ['Masih ada', 'Tutup Pembicaraan'];
+
+        return {
+          content: parsed.intro || textPart.text.trim(),
+          structured: {
+            checklist: isClosingDetected
+              ? []
+              : Array.isArray(parsed.checklist)
+              ? parsed.checklist
+              : [],
+            tipBox:
+              !isClosingDetected && parsed.tipBox && parsed.tipBox.text
+                ? parsed.tipBox
+                : null,
+            footerText: parsed.footerText || '',
+            quickReplies: isClosingDetected
+              ? ['Selesai & Penutup 💙', 'Pilih Topik Baru', 'Fitur Lainnya']
+              : isEmergencyDetected
+              ? [
+                  'Hubungi Guru BK',
+                  ...(Array.isArray(parsed.quickReplies)
+                    ? parsed.quickReplies.filter((q) => q !== 'Hubungi Guru BK').slice(0, 2)
+                    : ['Aku butuh ditemani sekarang']),
+                ]
+              : Array.isArray(parsed.quickReplies) && parsed.quickReplies.length > 0
+              ? parsed.quickReplies
+              : defaultQuickReplies,
+            isClosing: isClosingDetected,
+            isEmergency: isEmergencyDetected,
+            emergencyLevel: isEmergencyDetected ? 'critical' : 'normal',
+            emergencyWarning: emergencyWarningText,
+            emergencyReason: emergencyReasonText,
+          },
+          usage: {
+            modelName: data?.modelVersion || modelName,
+            promptTokens,
+            completionTokens,
+            thoughtTokens,
+            totalTokens,
+            latencyMs,
+          },
+        };
+      } catch (err) {
+        lastError = err;
+        const isTransient = isTransientNetworkError(err);
+
+        if (isTransient && attempt < BACKOFF_DELAYS.length) {
+          const delay = BACKOFF_DELAYS[attempt - 1];
+          console.warn(
+            `[SociaCare AI Backoff] Gangguan jaringan (${err.message}) pada ${modelName} (Percobaan ${attempt}/${BACKOFF_DELAYS.length}). Menunggu jeda ${delay / 1000}s sebelum retry otomatis...`
+          );
+          await sleep(delay);
+          continue;
+        }
+
+        console.warn(
+          `[SociaCare AI Fallback] Model ${modelName} gagal: ${err.message}. ${
+            nextModel ? `Mengalihkan request ke model alternatif ${nextModel}...` : 'Tidak ada model alternatif tersisa.'
+          }`
+        );
+        break; // Lanjut ke model fallback berikutnya
+      }
+    }
   }
 
-  throw lastError || new Error('Gagal mendapatkan respons dari Gemini API.');
+  throw lastError || new Error('Gagal mendapatkan respons dari seluruh model Gemini API.');
 }
 
 module.exports = {

@@ -92,25 +92,63 @@ export default function ChatPage() {
 
   async function createDefaultSession() {
     try {
-      const activeUser =
+      let activeUser =
         currentUser ||
         JSON.parse(localStorage.getItem('sociacare_user') || 'null');
-      if (!activeUser?.id) return;
 
+      // Auto-recover jika user belum tersimpan
+      if (!activeUser?.id) {
+        const devToken = localStorage.getItem('sociacare_device_token') || '';
+        const resIdent = await fetch('/api/users/identify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-token': devToken,
+          },
+          body: JSON.stringify({
+            name: 'Teman',
+            avatarStyle: 'student-female',
+            deviceToken: devToken,
+          }),
+        });
+        const identData = await resIdent.json();
+        if (identData.user) {
+          activeUser = identData.user;
+          setCurrentUser(activeUser);
+          localStorage.setItem('sociacare_user', JSON.stringify(activeUser));
+        }
+      }
+
+      if (!activeUser?.id) {
+        navigate('/', { replace: true });
+        return;
+      }
+
+      const devToken = localStorage.getItem('sociacare_device_token') || '';
       const res = await fetch(`/api/users/${activeUser.id}/sessions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topicId: 'friendship' }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-token': devToken,
+        },
+        body: JSON.stringify({ topicId: 'friendship', deviceToken: devToken }),
       });
       const data = await res.json();
       if (data.session) {
+        setCurrentSession(data.session);
+        setMessages(data.messages || []);
         await fetchUserSessions(activeUser.id);
+        loadedSessionIdRef.current = String(data.session.id);
         navigate(`/chat/${data.session.id}`, { replace: true });
+      } else {
+        navigate('/topics', { replace: true });
       }
     } catch (err) {
       console.error('Failed to create default session:', err);
+      navigate('/topics', { replace: true });
     } finally {
       creatingDefaultRef.current = false;
+      setLoadingSession(false);
     }
   }
 
@@ -139,10 +177,20 @@ export default function ChatPage() {
           localStorage.setItem('sociacare_user', JSON.stringify(data.user));
         }
       } else {
-        navigate('/topics', { replace: true });
+        // Jika sesi tidak ditemukan, cari sesi lain milik user atau buatkan sesi baru otomatis
+        if (userSessions.length > 0 && String(userSessions[0].id) !== String(idToLoad)) {
+          navigate(`/chat/${userSessions[0].id}`, { replace: true });
+        } else {
+          await createDefaultSession();
+        }
       }
     } catch (err) {
       console.error('Failed to load session:', err);
+      if (userSessions.length > 0 && String(userSessions[0].id) !== String(idToLoad)) {
+        navigate(`/chat/${userSessions[0].id}`, { replace: true });
+      } else {
+        await createDefaultSession();
+      }
     } finally {
       setLoadingSession(false);
       // Instant scroll to bottom after DOM paint
@@ -212,6 +260,9 @@ export default function ChatPage() {
         body: JSON.stringify({ content: textToSend }),
       });
       const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.error || `HTTP error ${res.status}`);
+      }
       if (data.messages) {
         setCurrentSession(data.session);
         setMessages(data.messages);
@@ -239,6 +290,27 @@ export default function ChatPage() {
       }
     } catch (err) {
       console.error('Failed to send message:', err);
+      // Sinkronkan ulang data pesan dari database jika request sempat terputus di jaringan
+      if (currentSession?.id) {
+        try {
+          const activeUser =
+            currentUser ||
+            JSON.parse(localStorage.getItem('sociacare_user') || 'null');
+          const userIdParam = activeUser?.id
+            ? `?userId=${encodeURIComponent(activeUser.id)}`
+            : '';
+          const syncRes = await fetch(
+            `/api/sessions/${currentSession.id}${userIdParam}`
+          );
+          const syncData = await syncRes.json();
+          if (syncData.messages && syncData.messages.length > 0) {
+            setMessages(syncData.messages);
+            if (syncData.session) setCurrentSession(syncData.session);
+          }
+        } catch (syncErr) {
+          console.warn('Sync fallback error:', syncErr);
+        }
+      }
     } finally {
       setSendingMessage(false);
     }
@@ -1023,7 +1095,9 @@ export default function ChatPage() {
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 placeholder={
-                  isEmergencyMode
+                  sendingMessage
+                    ? 'SociaCare AI sedang merumuskan balasan...'
+                    : isEmergencyMode
                     ? 'Ceritakan apa yang kamu rasakan saat ini, kami mendengarkanmu...'
                     : 'Ketik pesanmu di sini...'
                 }

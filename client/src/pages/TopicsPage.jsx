@@ -7,18 +7,33 @@ import { Menu, ArrowLeft, ArrowRight, Sparkles } from 'lucide-react';
 
 export default function TopicsPage() {
   const navigate = useNavigate();
-  const { currentUser, setCurrentSession, fetchUserSessions } = useApp();
+  const {
+    currentUser,
+    setCurrentUser,
+    setCurrentSession,
+    fetchUserSessions,
+    syncUserSession,
+  } = useApp();
   const [startingTopic, setStartingTopic] = useState(null);
 
   async function handleStartTopic(topicId) {
-    if (!currentUser) {
+    let user = currentUser;
+    if (!user) {
+      try {
+        const saved = localStorage.getItem('sociacare_user');
+        if (saved) user = JSON.parse(saved);
+      } catch {}
+    }
+
+    if (!user?.id) {
       navigate('/');
       return;
     }
+
     setStartingTopic(topicId);
     try {
       const devToken = localStorage.getItem('sociacare_device_token') || '';
-      const res = await fetch(`/api/users/${currentUser.id}/sessions`, {
+      const res = await fetch(`/api/users/${user.id}/sessions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -29,8 +44,34 @@ export default function TopicsPage() {
       const data = await res.json();
       if (data.session) {
         setCurrentSession(data.session);
-        await fetchUserSessions(currentUser.id);
+        await fetchUserSessions(user.id);
         navigate(`/chat/${data.session.id}`);
+        return;
+      }
+
+      // Self-healing jika sesi gagal (misal user session expired/lockout): re-sync otomatis
+      const reSyncedUser = await syncUserSession(
+        user.name || 'Teman',
+        user.avatar_style || 'student-female'
+      );
+      if (reSyncedUser?.id) {
+        const retryRes = await fetch(`/api/users/${reSyncedUser.id}/sessions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-token': localStorage.getItem('sociacare_device_token') || '',
+          },
+          body: JSON.stringify({
+            topicId,
+            deviceToken: localStorage.getItem('sociacare_device_token') || '',
+          }),
+        });
+        const retryData = await retryRes.json();
+        if (retryData.session) {
+          setCurrentSession(retryData.session);
+          await fetchUserSessions(reSyncedUser.id);
+          navigate(`/chat/${retryData.session.id}`);
+        }
       }
     } catch (err) {
       console.error('Failed to start session:', err);
