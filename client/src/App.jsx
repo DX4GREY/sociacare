@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import EmergencyModal from './components/EmergencyModal';
+import LogoutModal from './components/LogoutModal';
 import HomePage from './pages/HomePage';
 import TopicsPage from './pages/TopicsPage';
 import ChatPage from './pages/ChatPage';
@@ -15,6 +16,7 @@ export default function App() {
     <BrowserRouter>
       <AppProvider>
         <EmergencyModal />
+        <LogoutModal />
         <Routes>
           {/* Halaman Utama / Identitas Siswa */}
           <Route path="/" element={<HomePage />} />

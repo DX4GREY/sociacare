@@ -186,36 +186,44 @@ app.post('/api/users/identify', async (req, res) => {
     const name = String(req.body?.name || '').trim().slice(0, 120);
     const avatarStyle =
       req.body?.avatarStyle === 'student-male' ? 'student-male' : 'student-female';
+    const deviceToken = String(
+      req.body?.deviceToken || req.headers['x-device-token'] || ''
+    ).trim().slice(0, 255);
 
     if (!name) {
       return res.status(400).json({ error: 'Nama wajib diisi.' });
     }
 
+    if (!deviceToken) {
+      return res.status(400).json({ error: 'Device token tidak valid.' });
+    }
+
+    // Isolated per-device user: Cari user yang terikat HANYA dengan device_token ini
     const existing = await query(
-      `SELECT * FROM users WHERE LOWER(name) = LOWER($1) ORDER BY id DESC LIMIT 1`,
-      [name]
+      `SELECT * FROM users WHERE device_token = $1 ORDER BY id DESC LIMIT 1`,
+      [deviceToken]
     );
 
     let user;
     if (existing.rows.length > 0) {
       user = existing.rows[0];
       await query(
-        `UPDATE users SET last_active_at = CURRENT_TIMESTAMP, avatar_style = $1 WHERE id = $2`,
-        [avatarStyle, user.id]
+        `UPDATE users SET name = $1, avatar_style = $2, last_active_at = CURRENT_TIMESTAMP WHERE id = $3`,
+        [name, avatarStyle, user.id]
       );
       const refreshed = await query(`SELECT * FROM users WHERE id = $1`, [user.id]);
       user = refreshed.rows[0];
     } else {
       await query(
-        `INSERT INTO users (name, class_name, avatar_style) VALUES ($1, '', $2)`,
-        [name, avatarStyle]
+        `INSERT INTO users (name, class_name, avatar_style, device_token) VALUES ($1, '', $2, $3)`,
+        [name, avatarStyle, deviceToken]
       );
       const created = await query(
-        `SELECT * FROM users WHERE LOWER(name) = LOWER($1) ORDER BY id DESC LIMIT 1`,
-        [name]
+        `SELECT * FROM users WHERE device_token = $1 ORDER BY id DESC LIMIT 1`,
+        [deviceToken]
       );
       user = created.rows[0];
-      addServerLog('USER', `Pengguna baru terdaftar: ${name}`);
+      addServerLog('USER', `Pengguna baru terdaftar (Device Terisolasi): ${name} [ID: ${user?.id}]`);
     }
 
     res.json({ user });
@@ -225,11 +233,66 @@ app.post('/api/users/identify', async (req, res) => {
   }
 });
 
+// WIPE & LOGOUT ENDPOINT (Menghapus seluruh data sementara saat siswa logout)
+app.post('/api/users/:userId/wipe', async (req, res) => {
+  try {
+    const userId = Number(req.params.userId);
+    const deviceToken = String(
+      req.body?.deviceToken || req.headers['x-device-token'] || ''
+    ).trim();
+
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'User ID tidak valid.' });
+    }
+
+    // Verifikasi kepemilikan data sebelum penghapusan
+    if (deviceToken) {
+      const userRes = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
+      if (
+        userRes.rows.length > 0 &&
+        userRes.rows[0].device_token &&
+        userRes.rows[0].device_token !== deviceToken
+      ) {
+        return res.status(403).json({ error: 'Akses ditolak: token perangkat tidak sesuai.' });
+      }
+    }
+
+    // Hapus seluruh data percakapan, sesi, dan profil siswa secara permanen
+    await query(`DELETE FROM chat_messages WHERE user_id = $1`, [userId]);
+    await query(`DELETE FROM chat_sessions WHERE user_id = $1`, [userId]);
+    await query(`DELETE FROM counselor_requests WHERE user_id = $1`, [userId]);
+    await query(`DELETE FROM user_saved_tips WHERE user_id = $1`, [userId]);
+    await query(`DELETE FROM emergency_alerts WHERE user_id = $1`, [userId]).catch(() => {});
+    await query(`DELETE FROM users WHERE id = $1`, [userId]);
+
+    addServerLog('USER', `Data sesi & profil user ID ${userId} telah dibersihkan secara permanen (Logout Wipe).`);
+    res.json({ ok: true, message: 'Seluruh data sesi kamu telah dihapus secara permanen demi privasimu.' });
+  } catch (err) {
+    addServerLog('ERROR', `wipe error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal membersihkan data sesi pengguna.' });
+  }
+});
+
 app.get('/api/users/:userId/sessions', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.query.deviceToken || ''
+    ).trim();
+
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'User ID tidak valid.' });
+    }
+
+    if (deviceToken) {
+      const userRes = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
+      if (
+        userRes.rows.length > 0 &&
+        userRes.rows[0].device_token &&
+        userRes.rows[0].device_token !== deviceToken
+      ) {
+        return res.status(403).json({ error: 'Akses ditolak: token perangkat tidak sesuai.' });
+      }
     }
 
     const sessionsRes = await query(
@@ -251,8 +314,23 @@ app.get('/api/users/:userId/sessions', async (req, res) => {
 app.post('/api/users/:userId/sessions', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.body?.deviceToken || ''
+    ).trim();
+
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'User ID tidak valid.' });
+    }
+
+    if (deviceToken) {
+      const userCheck = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
+      if (
+        userCheck.rows.length > 0 &&
+        userCheck.rows[0].device_token &&
+        userCheck.rows[0].device_token !== deviceToken
+      ) {
+        return res.status(403).json({ error: 'Akses ditolak: token perangkat tidak sesuai.' });
+      }
     }
 
     const { topicId } = req.body || {};

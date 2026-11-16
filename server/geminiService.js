@@ -271,7 +271,7 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
     },
   ];
 
-  const modelsToTry = ['gemini-3.5-flash-lite', 'gemini-3.8-flash'];
+  const modelsToTry = ['gemini-3.1-flash-live-preview', 'gemini-3.5-flash-lite'];
   let lastError = null;
 
   for (const modelName of modelsToTry) {

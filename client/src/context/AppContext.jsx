@@ -2,6 +2,19 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const AppContext = createContext(null);
 
+export function getOrCreateDeviceToken() {
+  let token = localStorage.getItem('sociacare_device_token');
+  if (!token) {
+    token =
+      'dev_' +
+      (window.crypto?.randomUUID
+        ? window.crypto.randomUUID()
+        : Math.random().toString(36).substring(2) + Date.now().toString(36));
+    localStorage.setItem('sociacare_device_token', token);
+  }
+  return token;
+}
+
 export function AppProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
@@ -51,6 +64,9 @@ export function AppProvider({ children }) {
   });
   const [bkSuccess, setBkSuccess] = useState(false);
 
+  const [logoutStep, setLogoutStep] = useState(null); // null | 1 | 2
+  const [isWiping, setIsWiping] = useState(false);
+
   useEffect(() => {
     const saved = localStorage.getItem('sociacare_user');
     if (saved) {
@@ -72,11 +88,15 @@ export function AppProvider({ children }) {
   async function syncUserSession(name, avatarStyle) {
     setFormError('');
     setLoadingAuth(true);
+    const deviceToken = getOrCreateDeviceToken();
     try {
       const res = await fetch('/api/users/identify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, avatarStyle }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-token': deviceToken,
+        },
+        body: JSON.stringify({ name, avatarStyle, deviceToken }),
       });
       const data = await res.json();
       if (!res.ok || !data.user) {
@@ -106,7 +126,10 @@ export function AppProvider({ children }) {
   async function fetchUserSessions(userId) {
     if (!userId) return;
     try {
-      const res = await fetch(`/api/users/${userId}/sessions`);
+      const devToken = getOrCreateDeviceToken();
+      const res = await fetch(`/api/users/${userId}/sessions`, {
+        headers: { 'x-device-token': devToken },
+      });
       const data = await res.json();
       if (data.sessions) setUserSessions(data.sessions);
     } catch (err) {
@@ -117,7 +140,10 @@ export function AppProvider({ children }) {
   async function fetchUserCounselorRequests(userId) {
     if (!userId) return;
     try {
-      const res = await fetch(`/api/users/${userId}/counselor-requests`);
+      const devToken = getOrCreateDeviceToken();
+      const res = await fetch(`/api/users/${userId}/counselor-requests`, {
+        headers: { 'x-device-token': devToken },
+      });
       const data = await res.json();
       if (data.requests) setCounselorRequests(data.requests);
     } catch (err) {
@@ -135,14 +161,57 @@ export function AppProvider({ children }) {
     }
   }
 
+  function requestLogout() {
+    setLogoutStep(1);
+  }
+
+  function proceedToSecondWarning() {
+    setLogoutStep(2);
+  }
+
+  function cancelLogout() {
+    setLogoutStep(null);
+  }
+
+  async function confirmFinalLogoutAndWipe() {
+    setIsWiping(true);
+    try {
+      if (currentUser?.id) {
+        const devToken = getOrCreateDeviceToken();
+        await fetch(`/api/users/${currentUser.id}/wipe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-device-token': devToken,
+          },
+          body: JSON.stringify({ deviceToken: devToken }),
+        }).catch((err) => console.error('Wipe error:', err));
+      }
+    } finally {
+      // Clear localStorage session
+      localStorage.removeItem('sociacare_user');
+      // Generate a new clean device token so subsequent users get a fresh isolated record
+      const newToken =
+        'dev_' +
+        (window.crypto?.randomUUID
+          ? window.crypto.randomUUID()
+          : Math.random().toString(36).substring(2) + Date.now().toString(36));
+      localStorage.setItem('sociacare_device_token', newToken);
+
+      setCurrentUser(null);
+      setCurrentSession(null);
+      setUserSessions([]);
+      setCounselorRequests([]);
+      setNameInput('');
+      setIsEditingProfile(false);
+      setIsWiping(false);
+      setLogoutStep(null);
+      window.location.href = '/';
+    }
+  }
+
   function handleLogoutProfile() {
-    localStorage.removeItem('sociacare_user');
-    setCurrentUser(null);
-    setCurrentSession(null);
-    setUserSessions([]);
-    setCounselorRequests([]);
-    setNameInput('');
-    setIsEditingProfile(false);
+    requestLogout();
   }
 
   async function deleteSession(sessionId, e) {
@@ -220,6 +289,12 @@ export function AppProvider({ children }) {
         loadingAuth,
         syncUserSession,
         handleLogoutProfile,
+        requestLogout,
+        logoutStep,
+        isWiping,
+        proceedToSecondWarning,
+        cancelLogout,
+        confirmFinalLogoutAndWipe,
         currentSession,
         setCurrentSession,
         userSessions,

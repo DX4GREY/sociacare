@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(120) NOT NULL,
     class_name VARCHAR(60) DEFAULT '',
     avatar_style VARCHAR(40) DEFAULT 'student-female',
+    device_token VARCHAR(255) DEFAULT '',
     is_emergency INTEGER DEFAULT 0,
     emergency_level VARCHAR(30) DEFAULT 'normal',
     emergency_reason TEXT DEFAULT '',
@@ -97,6 +98,7 @@ CREATE TABLE IF NOT EXISTS emergency_alerts (
 `;
 
 const MIGRATION_COLUMNS = [
+  `ALTER TABLE users ADD COLUMN device_token VARCHAR(255) DEFAULT ''`,
   `ALTER TABLE users ADD COLUMN is_emergency INTEGER DEFAULT 0`,
   `ALTER TABLE users ADD COLUMN emergency_level VARCHAR(30) DEFAULT 'normal'`,
   `ALTER TABLE users ADD COLUMN emergency_reason TEXT DEFAULT ''`,

@@ -17,10 +17,14 @@ export default function TopicsPage() {
     }
     setStartingTopic(topicId);
     try {
+      const devToken = localStorage.getItem('sociacare_device_token') || '';
       const res = await fetch(`/api/users/${currentUser.id}/sessions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ topicId }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-token': devToken,
+        },
+        body: JSON.stringify({ topicId, deviceToken: devToken }),
       });
       const data = await res.json();
       if (data.session) {

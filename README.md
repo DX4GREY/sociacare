@@ -257,6 +257,8 @@ Sistem menggunakan database relasional SQL dengan struktur tabel berikut:
 
 ## 🔐 Keamanan, Etika, & Privasi
 
+- **Device-Isolated Account (Anti-Pembajakan Sesi Antar-Perangkat):** Identitas dan percakapan siswa terikat secara unik dengan *Device Token UUID* per perangkat/browser. Siswa yang memasukkan nama sama di perangkat berbeda **tidak akan pernah bercampur** atau membuka data milik siswa lain.
+- **Konfirmasi Keluar 2 Tahap (*Double Warning*) & Penghapusan Permanen (*Wipe on Exit*):** Karena sesi konseling bersifat privat dan sementara (*ephemeral*), siswa diperingatkan dua kali sebelum keluar. Saat dikonfirmasi, seluruh data percakapan dan sesi langsung dihapus total dari database dan perangkat demi menjamin kerahasiaan siswa saat perangkat dipakai orang lain.
 - **Tanpa Kewajiban Akun Rumit:** Siswa cukup memasukkan nama panggilan dan avatar untuk memulai konseling, mengurangi hambatan psikologis dalam mencari pertolongan.
 - **SQL Sanitization:** Semua query database menggunakan *parameterized queries* (`$1`, `$2`) untuk mencegah kerentanan SQL Injection.
 - **Bimbingan Konseling Beretika:** AI dirancang sebagai pendamping awal (*peer counselor*) dan **bukan pengganti psikolog klinis**. Setiap indikasi bahaya berat secara otomatis diarahkan ke tenaga profesional Guru BK sekolah dan hotline resmi Kemenkes RI.
