@@ -1,0 +1,19 @@
+{
+  "name": "sociacare-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SociaCare AI - Aplikasi Konseling Hubungan Sosial Berbasis React.js, SQL & Gemini AI",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "build": "npm --prefix client install && npm --prefix client run build && npm --prefix server install --omit=dev",
+    "start": "node server/index.js",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
