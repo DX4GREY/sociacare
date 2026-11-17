@@ -638,11 +638,14 @@ export default function AdminPanel() {
 
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-[#184B78] mb-1.5">
+              <label htmlFor="admin-login-pwd" className="block text-xs font-bold text-[#184B78] mb-1.5">
                 Password Administrator
               </label>
               <input
+                id="admin-login-pwd"
+                name="admin-password"
                 type="password"
+                autoComplete="current-password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="Masukkan ADMIN_PASSWORD (default: admin123)"
@@ -1273,11 +1276,15 @@ export default function AdminPanel() {
 
                 <form onSubmit={handleSaveServerConfig} className="space-y-3.5">
                   <div>
-                    <label className="block text-xs font-bold text-[#184B78] mb-1">
+                    <label htmlFor="config-gemini-key" className="block text-xs font-bold text-[#184B78] mb-1">
                       Ganti Google Gemini API Key (`GEMINI_API_KEY`)
                     </label>
                     <input
+                      id="config-gemini-key"
+                      name="gemini-api-key"
                       type="password"
+                      autoComplete="off"
+                      spellCheck="false"
                       value={newGeminiKey}
                       onChange={(e) => setNewGeminiKey(e.target.value)}
                       placeholder="Kosongkan jika tidak ingin mengubah API Key..."
@@ -1285,11 +1292,14 @@ export default function AdminPanel() {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-[#184B78] mb-1">
+                    <label htmlFor="config-admin-pwd" className="block text-xs font-bold text-[#184B78] mb-1">
                       Ganti Password Panel Admin (`ADMIN_PASSWORD`)
                     </label>
                     <input
+                      id="config-admin-pwd"
+                      name="new-admin-password"
                       type="password"
+                      autoComplete="new-password"
                       value={newAdminPwd}
                       onChange={(e) => setNewAdminPwd(e.target.value)}
                       placeholder="Kosongkan jika tidak ingin mengubah password admin..."

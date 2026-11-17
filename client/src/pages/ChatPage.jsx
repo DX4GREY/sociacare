@@ -275,9 +275,7 @@ export default function ChatPage() {
           localStorage.setItem('sociacare_user', JSON.stringify(data.user));
         }
         if (data.emergencyTriggered) {
-          const latestAi = [...data.messages]
-            .reverse()
-            .find((m) => m.sender === 'ai');
+          const latestAi = data.messages?.findLast((m) => m.sender === 'ai');
           setEmergencyModalWarning(
             latestAi?.structured?.emergencyWarning ||
               data.user?.emergency_warning_ai ||
@@ -331,8 +329,8 @@ export default function ChatPage() {
 
   const activeEmergencyWarning =
     currentUser?.emergency_warning_ai ||
-    [...messages].reverse().find((m) => m.structured?.emergencyWarning)
-      ?.structured?.emergencyWarning ||
+    messages.findLast((m) => m.structured?.emergencyWarning)?.structured
+      ?.emergencyWarning ||
     'PERINGATAN DARURAT AI: Sistem SociaCare AI mendeteksi kamu sedang dalam kondisi darurat yang sangat berat. Keselamatanmu adalah prioritas utama kami. Mohon segera hubungi Konselor / Guru BK atau layanan darurat 119 ext 8.';
 
   return (
