@@ -121,12 +121,24 @@ function detectClosingIntent(text) {
 
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 const BACKOFF_DELAYS = [2000, 4000, 8000]; // Jeda 2 detik, 4 detik, 8 detik (Exponential Backoff)
-const MODEL_FALLBACK_CHAIN = [
-  'gemini-3.5-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-];
+
+function getModelFallbackChain() {
+  const primaryModel = (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite').trim();
+  const fallbacksEnv = (process.env.GEMINI_FALLBACK_MODELS || '').trim();
+
+  let chain = [primaryModel];
+  if (fallbacksEnv) {
+    const list = fallbacksEnv.split(',').map((m) => m.trim()).filter(Boolean);
+    chain.push(...list);
+  } else {
+    // Default fallback chain jika tidak diatur di .env
+    const defaults = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
+    chain.push(...defaults);
+  }
+
+  // Hilangkan duplikasi dengan tetap menjaga urutan
+  return Array.from(new Set(chain.filter(Boolean)));
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -374,11 +386,12 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
     },
   ];
 
+  const modelChain = getModelFallbackChain();
   let lastError = null;
 
-  for (let mIdx = 0; mIdx < MODEL_FALLBACK_CHAIN.length; mIdx++) {
-    const modelName = MODEL_FALLBACK_CHAIN[mIdx];
-    const nextModel = MODEL_FALLBACK_CHAIN[mIdx + 1];
+  for (let mIdx = 0; mIdx < modelChain.length; mIdx++) {
+    const modelName = modelChain[mIdx];
+    const nextModel = modelChain[mIdx + 1];
 
     for (let attempt = 1; attempt <= BACKOFF_DELAYS.length; attempt++) {
       const t0 = Date.now();
@@ -564,4 +577,5 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
 module.exports = {
   generateCounselorResponse,
   DEFAULT_SYSTEM_PERSONA,
+  getModelFallbackChain,
 };
