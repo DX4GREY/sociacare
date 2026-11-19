@@ -128,3 +128,26 @@ CREATE TABLE IF NOT EXISTS content_videos (
     key_takeaways_json TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS ai_learning_memory (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    topic_id VARCHAR(60) NOT NULL,
+    category VARCHAR(80) DEFAULT 'general',
+    query_pattern TEXT NOT NULL,
+    learned_insight TEXT NOT NULL,
+    key_takeaway TEXT DEFAULT '',
+    source_session_id INTEGER DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS ai_reference_photos (
+    id VARCHAR(80) PRIMARY KEY,
+    title VARCHAR(200) NOT NULL,
+    category VARCHAR(80) NOT NULL,
+    description TEXT NOT NULL,
+    file_url TEXT NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_size INTEGER DEFAULT 0,
+    tags TEXT DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -56,6 +56,84 @@ function postJsonIPv4(urlString, payload, extraHeaders = {}) {
   });
 }
 
+function getCurrentDateTimeContext() {
+  const now = new Date();
+  const optionsDate = {
+    timeZone: 'Asia/Jakarta',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  };
+  const optionsTime = {
+    timeZone: 'Asia/Jakarta',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  };
+
+  const dateString = new Intl.DateTimeFormat('id-ID', optionsDate).format(now);
+  const timeString = new Intl.DateTimeFormat('id-ID', optionsTime).format(now);
+
+  const hour = Number(
+    new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      hour: 'numeric',
+      hour12: false,
+    }).format(now)
+  );
+
+  let period = 'Pagi';
+  if (hour >= 11 && hour < 15) period = 'Siang';
+  else if (hour >= 15 && hour < 18) period = 'Sore';
+  else if (hour >= 18 || hour < 5) period = 'Malam';
+
+  return {
+    dateString,
+    timeString,
+    period,
+    hour,
+    formatted: `Hari ${dateString}, Pukul ${timeString} WIB (Waktu ${period})`,
+  };
+}
+
+async function recordConversationLearning({ topicId, userMessage, aiReplyContent, sessionId }) {
+  try {
+    const rawUser = String(userMessage || '').trim();
+    const rawAi = String(aiReplyContent || '').trim();
+
+    // Rekam hanya jika ada interaksi yang substansial (bukan sapaan pendek atau salam penutup)
+    if (rawUser.length < 15 || rawAi.length < 35) return;
+    if (/^(halo|hai|p|oi|tes|test|oke|siap|makasih|terima kasih|bye|tutup|selesai)$/i.test(rawUser)) return;
+
+    // Bersihkan nama & kata ganti agar bersifat general & anonim bagi seluruh siswa
+    const generalizedQuery = rawUser
+      .replace(/\b(saya|aku|gua|gw)\b/gi, 'Siswa')
+      .slice(0, 250);
+
+    // Ambil 1-2 kalimat solusi pertama dari balasan AI
+    const firstSentences = rawAi.split(/[.!?]\s+/).slice(0, 2).join('. ') + '.';
+    const generalizedInsight = firstSentences.slice(0, 350);
+
+    const db = require('./db');
+    await db.query(
+      `INSERT INTO ai_learning_memory (topic_id, category, query_pattern, learned_insight, key_takeaway, source_session_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        topicId || 'general',
+        'Pembelajaran Percakapan Konseling',
+        generalizedQuery,
+        generalizedInsight,
+        'Dipelajari otomatis dari pengalaman konseling siswa.',
+        sessionId || null,
+      ]
+    );
+  } catch (err) {
+    console.warn('[Auto-Learning Storage Error]', err.message);
+  }
+}
+
 const DEFAULT_SYSTEM_PERSONA = `Kamu adalah "SociaCare AI", konselor sebaya dan asisten Bimbingan Konseling (BK) yang hangat, cerdas, empatik, dan suportif bagi pelajar maupun mahasiswa. Gunakan bahasa Indonesia yang ramah dan akrab (gunakan sapaan "Aku" dan "kamu", serta sesekali sebut nama "{nama}").`;
 
 const EMERGENCY_PATTERNS = [
@@ -216,6 +294,32 @@ async function generateCounselorResponse({
 
   const keywordEmergency = !isClosingRequested && detectSevereEmergencyKeywords(userMessage);
 
+  const dateTimeContext = getCurrentDateTimeContext();
+  let learnedMemories = [];
+  let referencePhotos = [];
+
+  try {
+    const db = require('./db');
+    const [memoriesRes, photosRes] = await Promise.all([
+      db.query(
+        `SELECT topic_id, category, query_pattern, learned_insight, key_takeaway 
+         FROM ai_learning_memory 
+         WHERE topic_id = $1 OR topic_id = 'general' 
+         ORDER BY id DESC LIMIT 5`,
+        [topic.id]
+      ),
+      db.query(
+        `SELECT id, title, category, description, file_url 
+         FROM ai_reference_photos 
+         ORDER BY id ASC LIMIT 15`
+      ),
+    ]);
+    learnedMemories = memoriesRes.rows || [];
+    referencePhotos = photosRes.rows || [];
+  } catch (dbErr) {
+    console.warn('[AI Knowledge Retrieval Warning]', dbErr.message);
+  }
+
   try {
     const apiKey = (process.env.GEMINI_API_KEY || '').trim();
     if (!apiKey) {
@@ -233,6 +337,9 @@ async function generateCounselorResponse({
       keywordEmergency,
       isClosingRequested,
       isImageRequested,
+      dateTimeContext,
+      learnedMemories,
+      referencePhotos,
     });
 
     const finalIsClosing = Boolean(
@@ -261,6 +368,9 @@ async function generateCounselorResponse({
           keywordEmergency,
           isClosingRequested,
           isImageRequested,
+          dateTimeContext,
+          learnedMemories,
+          referencePhotos,
         });
 
         const finalIsClosing = Boolean(
@@ -408,34 +518,84 @@ function buildCounselorSystemPrompt({
   isClosingRequested,
   isImageRequested,
   topicInfographic,
+  dateTimeContext,
+  learnedMemories = [],
+  referencePhotos = [],
 }) {
   const stageGuidance = isClosingRequested
     ? `PENGGUNA MEMILIH UNTUK MENUTUP / MENGAKHIRI PEMBICARAAN KONSELING.
 Berikan pesan penutup konseling yang sangat hangat, mengapresiasi keberanian "${userName || 'Teman'}" karena sudah berbagi cerita hari ini, rangkum singkat penguatan positif dari obrolan sebelumnya, dan sampaikan bahwa pintu SociaCare AI selalu terbuka kapan pun ia ingin bercerita lagi.
 Wajib set "isClosing": true, biarkan "checklist": [], "tipBox": null, "infographic": null, isi "footerText" dengan kalimat perpisahan yang menenangkan, dan isi "quickReplies" dengan ["Selesai & Penutup 💙", "Fitur Lainnya", "Hubungi Guru BK"].`
     : isImageRequested
-    ? `PENGGUNA MEMINTA GAMBAR / INFOGRAFIS EDUKASI SECARA EKSPLISIT.
-SociaCare AI memiliki kemampuan mengirim infografis gambar visual resmi. Sambut permintaan mereka dengan sangat antusias dan ramah, jelaskan secara singkat isi gambar tersebut, dan WAJIB sertakan objek "infographic" lengkap dari topik "${topic.title}":
-- id: "${topicInfographic?.id || 'assertive-communication'}"
-- title: "${topicInfographic?.title || 'Infografis Edukasi Sosial'}"
-- category: "${topicInfographic?.category || topic.title}"
-- caption: "${topicInfographic?.caption || 'Panduan visual bimbingan konseling'}"
-- url: "${topicInfographic?.url || '/infographics/assertive-communication.svg'}"
-JANGAN PERNAH menolak atau berkata "aku belum bisa menampilkan gambar"! Nyatakan bahwa kamu menyertakan kartu infografis visual tersebut di bawah ini.`
+    ? `PENGGUNA MEMINTA GAMBAR / INFOGRAFIS / FOTO EDUKASI SECARA EKSPLISIT.
+Sambut permintaan mereka dengan antusias dan ramah, jelaskan secara singkat isi gambar tersebut, dan WAJIB sertakan objek "infographic" dari salah satu foto referensi di katalog database di bawah.
+JANGAN PERNAH menolak atau berkata "aku belum bisa menampilkan gambar"! Nyatakan bahwa kamu menyertakan kartu foto referensi visual tersebut di bawah ini.`
     : nextStage === 3
     ? `Pengguna baru mulai bercerita. Dengarkan dengan penuh empati, tanggapi isi pesan secara spesifik dan natural, lalu ajukan 1 pertanyaan lembut untuk menggali cerita/perasaan mereka lebih dalam. Di tahap awal ini, cukup balas dengan teks biasa ("checklist": [], "tipBox": null, "infographic": null).`
     : nextStage === 4
-    ? `Tanggapi cerita pengguna secara kontekstual dan empatik. Kamu bebas memilih format balasan: jika pengguna membutuhkan panduan praktis, kamu boleh menyertakan "checklist" solusi atau "infographic". Jika percakapan lebih cocok dijawab dengan chat biasa, cukup balas dengan teks percakapan biasa tanpa checklist.`
-    : `Jawab pertanyaan atau tanggapan pengguna secara kontekstual sesuai topik "${topic.title}". Pilih format balasan secara custom: bisa teks biasa saja, teks + tips, teks + checklist, atau teks + infografis gambar. Sesuaikan dengan apa yang paling membantu pengguna saat ini.`;
+    ? `Tanggapi cerita pengguna secara kontekstual dan empatik. Kamu bebas memilih format balasan: jika pengguna membutuhkan panduan praktis, kamu boleh menyertakan "checklist" solusi atau foto referensi "infographic". Jika percakapan lebih cocok dijawab dengan chat biasa, cukup balas dengan teks percakapan biasa tanpa checklist.`
+    : `Jawab pertanyaan atau tanggapan pengguna secara kontekstual sesuai topik "${topic.title}". Pilih format balasan secara custom: bisa teks biasa saja, teks + tips, teks + checklist, atau teks + foto referensi bimbingan konseling. Sesuaikan dengan apa yang paling membantu pengguna saat ini.`;
 
   const basePersona = (customSystemPersona || DEFAULT_SYSTEM_PERSONA)
     .replace(/\{nama\}/gi, userName || 'Teman')
     .replace(/\{kelas\}/gi, '')
     .replace(/\{topik\}/gi, topic.title);
 
+  const timeAwarenessSection = dateTimeContext
+    ? `AKSES WAKTU & KALENDER REAL-TIME (JAM & TANGGAL AKTIF):
+Saat ini adalah: ${dateTimeContext.formatted}.
+- Waktu lokal: ${dateTimeContext.timeString} WIB
+- Hari & Tanggal: ${dateTimeContext.dateString}
+- Suasana Waktu: ${dateTimeContext.period}
+Gunakan konteks waktu ini secara alami jika relevan (misalnya sapaan "Selamat ${dateTimeContext.period}", mengenali jam belajar sekolah, istirahat, atau malam hari saat siswa bercerita).`
+    : '';
+
+  const learningMemorySection =
+    Array.isArray(learnedMemories) && learnedMemories.length > 0
+      ? `MEMORI PEMBELAJARAN AI DARI DATABASE (DIPELAJARI DARI PERCAKAPAN SISWA LAIN SEBELUMNYA):
+Berikut pola masalah dan solusi yang telah kamu pelajari dari interaksi database terdahulu:
+${learnedMemories
+  .map(
+    (m, idx) =>
+      `[Pembelajaran #${idx + 1}] Pola Siswa: "${m.query_pattern}"\n  Solusi Terpelajar: ${m.learned_insight}\n  Kunci: ${m.key_takeaway || '-'}`
+  )
+  .join('\n')}
+Gunakan pengetahuan yang sudah dipelajari di atas untuk memperkaya jawabanmu agar semakin solutif, empatik, dan konsisten.`
+      : '';
+
+  const photosCatalogSection =
+    Array.isArray(referencePhotos) && referencePhotos.length > 0
+      ? `KATALOG FOTO REFERENSI EDUKASI & KONSELING (DIUNGGAH GURU BK / ADMIN KE DATABASE):
+Kamu memiliki akses ke foto referensi yang tersimpan di server. Kamu DAPAT mengirimkan salah satu foto ini jika diminta atau jika sangat relevan dengan topik pengguna:
+${referencePhotos
+  .map(
+    (p, idx) =>
+      `[Foto #${idx + 1}] ID: "${p.id}" | Judul: "${p.title}" | Kategori: "${p.category}" | URL: "${p.file_url}"\n  Pelajaran Materi: ${p.description}`
+  )
+  .join('\n')}
+
+ATURAN PENGIRIMAN FOTO REFERENSI:
+- Jika pengguna meminta gambar/foto referensi, ATAU jika menurutmu ada foto di atas yang sangat cocok untuk mengilustrasikan solusi:
+  Wajib sertakan objek "infographic" di JSON balasan:
+  "infographic": {
+    "id": "<id_foto>",
+    "title": "<judul_foto>",
+    "category": "<kategori_foto>",
+    "caption": "<keterangan singkat kamu menjelaskan foto ini>",
+    "url": "<url_foto>"
+  }
+- Jika percakapan tidak membutuhkan foto/gambar, wajib atur "infographic": null.`
+      : '';
+
   return `${basePersona}
 Topik konseling yang dipilih: "${topic.title}".
 Nama: "${userName}".
+
+${timeAwarenessSection}
+
+${learningMemorySection}
+
+${photosCatalogSection}
 
 Panduan Tahap Percakapan:
 ${stageGuidance}
@@ -455,21 +615,16 @@ Kamu memiliki otonomi dan kebebasan penuh dalam menentukan format dan bentuk pes
 3. CHAT DENGAN TIP BOX (LAMPU KUNING 💡):
    - Gunakan "tipBox": { "title": "Tips Tambahan:", "text": "..." } HANYA jika ada 1 catatan penting atau pengingat positif yang ingin kamu sorot secara khusus. Jika tidak perlu, biarkan null.
 
-4. CHAT DENGAN GAMBAR / INFOGRAFIS VISUAL:
-   - SociaCare AI memiliki katalog infografis resmi:
-     * Komunikasi Asertif: id "assertive-communication", url "/infographics/assertive-communication.svg"
-     * Kepercayaan Diri: id "presentation-confidence", url "/infographics/presentation-confidence.svg"
-     * Pertemanan Sehat: id "healthy-friendship", url "/infographics/healthy-friendship.svg"
-     * Mencegah Bullying: id "stop-bullying", url "/infographics/stop-bullying.svg"
-   - Sertakan objek "infographic" HANYA jika pengguna meminta gambar/infografis secara eksplisit ("ada gambarnya?", "kirim infografisnya dong") ATAU jika menurutmu diagram visual tersebut sangat tepat untuk memperjelas topik. Jika tidak diminta atau tidak perlu, WAJIB biarkan null.
+4. CHAT DENGAN GAMBAR / FOTO REFERENSI:
+   - Sertakan objek "infographic" dari katalog foto di atas HANYA jika pengguna meminta foto/gambar atau materi sangat pas diperjelas dengan foto tersebut. Jika tidak perlu, WAJIB biarkan null.
 
 5. KOMBINASI BEBAS SESUAI KONTEKS:
    - Kamu bebas mengirim balasan dalam bentuk apa pun:
      * Hanya teks biasa
      * Teks biasa + checklist
-     * Teks biasa + gambar
+     * Teks biasa + foto referensi
      * Teks biasa + tipbox
-     * Teks biasa + checklist + tipbox + gambar
+     * Teks biasa + checklist + tipbox + foto referensi
    Tentukan sendiri bentuk yang paling pas dan nyaman untuk pengguna!
 
 DETEKSI KONDISI GAWAT DARURAT / SANGAT PARAH (PENTING!):
@@ -516,6 +671,9 @@ async function callGeminiApi({
   keywordEmergency,
   isClosingRequested,
   isImageRequested,
+  dateTimeContext,
+  learnedMemories,
+  referencePhotos,
 }) {
   const topicInfographic = EDUCATIONAL_INFOGRAPHICS[topic.id] || null;
   const systemPrompt = buildCounselorSystemPrompt({
@@ -528,6 +686,9 @@ async function callGeminiApi({
     isClosingRequested,
     isImageRequested,
     topicInfographic,
+    dateTimeContext,
+    learnedMemories,
+    referencePhotos,
   });
 
   const contents = [
@@ -783,6 +944,9 @@ async function callDeepSeekApi({
   keywordEmergency,
   isClosingRequested,
   isImageRequested,
+  dateTimeContext,
+  learnedMemories,
+  referencePhotos,
 }) {
   const modelName = (process.env.DEEPSEEK_MODEL || 'deepseek-chat').trim();
   const url = 'https://api.deepseek.com/chat/completions';
@@ -798,6 +962,9 @@ async function callDeepSeekApi({
     isClosingRequested,
     isImageRequested,
     topicInfographic,
+    dateTimeContext,
+    learnedMemories,
+    referencePhotos,
   });
 
   const messages = [
@@ -952,4 +1119,6 @@ module.exports = {
   DEFAULT_SYSTEM_PERSONA,
   getModelFallbackChain,
   callDeepSeekApi,
+  getCurrentDateTimeContext,
+  recordConversationLearning,
 };

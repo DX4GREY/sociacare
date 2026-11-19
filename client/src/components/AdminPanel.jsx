@@ -35,6 +35,11 @@ import {
   FileText,
   Lightbulb,
   ExternalLink,
+  Image,
+  Brain,
+  Clock,
+  Calendar,
+  UploadCloud,
 } from 'lucide-react';
 
 function formatBytes(bytes) {
@@ -76,6 +81,8 @@ export default function AdminPanel() {
   const [loadingStats, setLoadingStats] = useState(false);
   const [geminiTestResult, setGeminiTestResult] = useState(null);
   const [testingGemini, setTestingGemini] = useState(false);
+  const [deepseekTestResult, setDeepseekTestResult] = useState(null);
+  const [testingDeepSeek, setTestingDeepSeek] = useState(false);
 
   // AI Opening Format & Persona Settings State
   const [aiSettings, setAiSettings] = useState({
@@ -98,6 +105,8 @@ export default function AdminPanel() {
 
   // Server Config Form State
   const [newGeminiKey, setNewGeminiKey] = useState('');
+  const [newDeepseekKey, setNewDeepseekKey] = useState('');
+  const [newDeepseekModel, setNewDeepseekModel] = useState('');
   const [newAdminPwd, setNewAdminPwd] = useState('');
 
   // Users CRUD State
@@ -151,6 +160,31 @@ export default function AdminPanel() {
     keyTakeaways: '',
   });
 
+  // AI Continuous Learning & Reference Photos State
+  const [learningTab, setLearningTab] = useState('photos'); // 'photos' | 'memories'
+  const [photosList, setPhotosList] = useState([]);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [memoriesList, setMemoriesList] = useState([]);
+  const [loadingMemories, setLoadingMemories] = useState(false);
+  const [zoomPhoto, setZoomPhoto] = useState(null);
+
+  const [photoForm, setPhotoForm] = useState({
+    title: '',
+    category: 'Hubungan Pertemanan',
+    description: '',
+    fileUrl: '',
+    base64Data: '',
+    preview: '',
+  });
+
+  const [memoryForm, setMemoryForm] = useState({
+    topicId: 'general',
+    category: 'Pola Masalah Sosial Siswa',
+    queryPattern: '',
+    learnedInsight: '',
+    keyTakeaway: '',
+  });
+
   function showNotification(type, text) {
     setBannerMsg({ type, text });
     setTimeout(() => setBannerMsg(null), 4500);
@@ -170,8 +204,169 @@ export default function AdminPanel() {
       loadUsers();
       loadCounselingData();
       loadContentData();
+      loadPhotos();
+      loadMemories();
     }
   }, [adminToken]);
+
+  async function loadPhotos() {
+    setLoadingPhotos(true);
+    try {
+      const res = await fetch('/api/admin/photos', { headers: adminHeaders() });
+      const data = await res.json();
+      if (data.photos) setPhotosList(data.photos);
+    } catch (err) {
+      console.error('Error loading photos:', err);
+    } finally {
+      setLoadingPhotos(false);
+    }
+  }
+
+  async function loadMemories() {
+    setLoadingMemories(true);
+    try {
+      const res = await fetch('/api/admin/learning-memory', { headers: adminHeaders() });
+      const data = await res.json();
+      if (data.memories) setMemoriesList(data.memories);
+    } catch (err) {
+      console.error('Error loading learning memories:', err);
+    } finally {
+      setLoadingMemories(false);
+    }
+  }
+
+  function handlePhotoFileSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showNotification('error', 'File yang dipilih harus berupa gambar (JPG, PNG, WebP).');
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      showNotification('error', 'Ukuran foto maksimal 20MB.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotoForm((prev) => ({
+        ...prev,
+        base64Data: reader.result,
+        preview: reader.result,
+      }));
+    };
+    reader.readAsDataURL(file);
+  }
+
+  async function handleAddPhoto(e) {
+    e.preventDefault();
+    if (!photoForm.title.trim()) {
+      showNotification('error', 'Judul foto referensi wajib diisi.');
+      return;
+    }
+    if (!photoForm.base64Data && !photoForm.fileUrl.trim()) {
+      showNotification('error', 'Pilih file foto dari perangkat Anda atau masukkan URL foto.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/photos', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify({
+          title: photoForm.title,
+          category: photoForm.category,
+          description: photoForm.description,
+          fileUrl: photoForm.fileUrl,
+          base64Data: photoForm.base64Data,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', `Foto referensi "${photoForm.title}" berhasil disimpan ke sistem!`);
+        setPhotoForm({
+          title: '',
+          category: 'Hubungan Pertemanan',
+          description: '',
+          fileUrl: '',
+          base64Data: '',
+          preview: '',
+        });
+        await loadPhotos();
+      } else {
+        showNotification('error', data.error || 'Gagal mengunggah foto.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleDeletePhoto(id, title) {
+    if (!window.confirm(`Yakin ingin menghapus foto referensi "${title}"? AI tidak akan lagi menggunakan foto ini.`)) return;
+    try {
+      const res = await fetch(`/api/admin/photos/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        showNotification('success', 'Foto referensi berhasil dihapus.');
+        await loadPhotos();
+      } else {
+        showNotification('error', 'Gagal menghapus foto referensi.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleAddMemory(e) {
+    e.preventDefault();
+    if (!memoryForm.queryPattern.trim() || !memoryForm.learnedInsight.trim()) {
+      showNotification('error', 'Pola masalah siswa dan solusi wawasan wajib diisi.');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/learning-memory', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify(memoryForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', 'Memori pembelajaran baru berhasil ditambahkan ke AI!');
+        setMemoryForm({
+          topicId: 'general',
+          category: 'Pola Masalah Sosial Siswa',
+          queryPattern: '',
+          learnedInsight: '',
+          keyTakeaway: '',
+        });
+        await loadMemories();
+      } else {
+        showNotification('error', data.error || 'Gagal menambahkan memori.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleDeleteMemory(id, pattern) {
+    if (!window.confirm(`Hapus pembelajaran ini dari memori AI?\n"${pattern?.slice(0, 60)}..."`)) return;
+    try {
+      const res = await fetch(`/api/admin/learning-memory/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        showNotification('success', 'Memori pembelajaran berhasil dihapus.');
+        await loadMemories();
+      } else {
+        showNotification('error', 'Gagal menghapus memori pembelajaran.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
 
   async function loadContentData() {
     setLoadingContent(true);
@@ -523,6 +718,24 @@ export default function AdminPanel() {
     }
   }
 
+  async function handleTestDeepSeekConnection() {
+    setTestingDeepSeek(true);
+    setDeepseekTestResult(null);
+    try {
+      const res = await fetch('/api/admin/test-deepseek', {
+        method: 'POST',
+        headers: adminHeaders(),
+      });
+      const data = await res.json();
+      setDeepseekTestResult(data);
+      loadServerStats();
+    } catch (err) {
+      setDeepseekTestResult({ ok: false, error: err.message });
+    } finally {
+      setTestingDeepSeek(false);
+    }
+  }
+
   async function handleSaveServerConfig(e) {
     e.preventDefault();
     try {
@@ -531,6 +744,8 @@ export default function AdminPanel() {
         headers: adminHeaders(),
         body: JSON.stringify({
           geminiApiKey: newGeminiKey,
+          deepseekApiKey: newDeepseekKey,
+          deepseekModel: newDeepseekModel,
           newAdminPassword: newAdminPwd,
         }),
       });
@@ -541,6 +756,8 @@ export default function AdminPanel() {
           setAdminToken(data.newToken);
         }
         setNewGeminiKey('');
+        setNewDeepseekKey('');
+        setNewDeepseekModel('');
         setNewAdminPwd('');
         showNotification('success', 'Konfigurasi server (.env) berhasil diperbarui!');
         loadServerStats();
@@ -1044,6 +1261,28 @@ export default function AdminPanel() {
             <button
               type="button"
               onClick={() => {
+                setActiveTab('learning_photos');
+                loadPhotos();
+                loadMemories();
+              }}
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+                activeTab === 'learning_photos'
+                  ? 'bg-[#1E5FA8] text-white shadow'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Brain size={18} />
+                <span>Pembelajaran AI & Foto</span>
+              </div>
+              <span className="bg-purple-400/20 text-purple-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                {memoriesList.length} memori
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
                 setActiveTab('sql');
                 if (!sqlResult) {
                   handleRunSql(
@@ -1502,6 +1741,69 @@ export default function AdminPanel() {
                   )}
                 </div>
 
+                {/* Test DeepSeek AI Ping (Fallback Terakhir) */}
+                <div className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-2xl p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs sm:text-sm font-bold text-[#163A5F]">
+                          Diagnostik Koneksi LLM DeepSeek (Fallback Terakhir)
+                        </span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            stats?.server?.deepseekConfigured
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}
+                        >
+                          {stats?.server?.deepseekConfigured ? `Key Aktif (${stats?.server?.deepseekMaskedKey})` : 'Key Belum Diatur'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#4A6382]">
+                        Uji koneksi ke `api.deepseek.com` (Model: {stats?.server?.deepseekModel || 'deepseek-chat'}) saat model Gemini bermasalah.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={testingDeepSeek}
+                      onClick={handleTestDeepSeekConnection}
+                      className="bg-[#0284C7] hover:bg-[#0369A1] disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Play size={14} />
+                      <span>
+                        {testingDeepSeek ? 'Menguji DeepSeek...' : 'Test Ping DeepSeek AI'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {deepseekTestResult && (
+                    <div
+                      className={`p-3 rounded-xl text-xs border ${
+                        deepseekTestResult.ok
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                          : 'bg-red-50 border-red-200 text-red-900'
+                      }`}
+                    >
+                      <div className="font-bold">
+                        {deepseekTestResult.ok
+                          ? `✓ Koneksi DeepSeek Berhasil — Latensi: ${
+                              deepseekTestResult.latencyMs
+                            } ms • Token: ${
+                              deepseekTestResult.usage?.totalTokens || 0
+                            } (In: ${deepseekTestResult.usage?.promptTokens || 0}, Out: ${
+                              deepseekTestResult.usage?.completionTokens || 0
+                            })`
+                          : `✕ Koneksi DeepSeek Gagal (${deepseekTestResult.latencyMs} ms): ${deepseekTestResult.error}`}
+                      </div>
+                      {deepseekTestResult.sampleReply && (
+                        <div className="mt-1 text-[#243B55] italic">
+                          "{deepseekTestResult.sampleReply}"
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 <form onSubmit={handleSaveServerConfig} className="space-y-3.5">
                   <div>
                     <label htmlFor="config-gemini-key" className="block text-xs font-bold text-[#184B78] mb-1">
@@ -1518,6 +1820,39 @@ export default function AdminPanel() {
                       placeholder="Kosongkan jika tidak ingin mengubah API Key..."
                       className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
                     />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="config-deepseek-key" className="block text-xs font-bold text-[#184B78] mb-1">
+                        DeepSeek API Key (`DEEPSEEK_API_KEY`)
+                      </label>
+                      <input
+                        id="config-deepseek-key"
+                        name="deepseek-api-key"
+                        type="password"
+                        autoComplete="off"
+                        spellCheck="false"
+                        value={newDeepseekKey}
+                        onChange={(e) => setNewDeepseekKey(e.target.value)}
+                        placeholder="sk-xxxxxxxxxxxxxxxx (Kosongkan jika tidak ubah)..."
+                        className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="config-deepseek-model" className="block text-xs font-bold text-[#184B78] mb-1">
+                        Model DeepSeek (`DEEPSEEK_MODEL`)
+                      </label>
+                      <input
+                        id="config-deepseek-model"
+                        name="deepseek-model"
+                        type="text"
+                        value={newDeepseekModel}
+                        onChange={(e) => setNewDeepseekModel(e.target.value)}
+                        placeholder="Contoh: deepseek-chat atau deepseek-reasoner"
+                        className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
+                      />
+                    </div>
                   </div>
                   <div>
                     <label htmlFor="config-admin-pwd" className="block text-xs font-bold text-[#184B78] mb-1">
@@ -3529,6 +3864,595 @@ export default function AdminPanel() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 7: PEMBELAJARAN AI & FOTO REFERENSI KONSELING                  */}
+        {/* =================================================================== */}
+        {activeTab === 'learning_photos' && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="bg-white border border-[#C5DDF6] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
+                    <Brain size={24} />
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-extrabold text-[#163A5F]">
+                    Pembelajaran Berkelanjutan AI & Foto Referensi
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-[#4A6382] mt-1.5 leading-relaxed max-w-2xl">
+                  AI SociaCare belajar secara otomatis dari pola percakapan siswa dan menyimpannya ke database untuk diterapkan secara general ke seluruh pengguna. Admin juga dapat mengunggah foto referensi konseling agar AI dapat mengirimkannya ke siswa sebagai kartu edukasi visual.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadPhotos();
+                    loadMemories();
+                  }}
+                  disabled={loadingPhotos || loadingMemories}
+                  className="bg-[#EBF4FD] hover:bg-[#DCEBFA] text-[#1E5FA8] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-full transition flex items-center gap-2 cursor-pointer border border-[#C5DDF6]"
+                >
+                  <RefreshCw
+                    size={15}
+                    className={loadingPhotos || loadingMemories ? 'animate-spin' : ''}
+                  />
+                  <span>Refresh Data</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Live Clock & Calendar Indicator Banner */}
+            <div className="bg-gradient-to-r from-[#102A45] via-[#163A5F] to-[#1E5FA8] text-white rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-white/10 text-sky-200">
+                  <Clock size={20} />
+                </div>
+                <div>
+                  <div className="text-[11px] font-bold text-sky-300 uppercase tracking-wider">
+                    Akses Waktu & Kalender Real-Time AI
+                  </div>
+                  <div className="text-sm sm:text-base font-extrabold">
+                    {new Intl.DateTimeFormat('id-ID', {
+                      timeZone: 'Asia/Jakarta',
+                      weekday: 'long',
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    }).format(new Date())}
+                    {' • '}
+                    {new Intl.DateTimeFormat('id-ID', {
+                      timeZone: 'Asia/Jakarta',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                    }).format(new Date())}{' '}
+                    WIB
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs bg-white/10 px-4 py-2 rounded-xl backdrop-blur-xs">
+                <Calendar size={16} className="text-sky-300" />
+                <span className="text-slate-200">
+                  AI mengenali konteks jam belajar, istirahat, dan waktu siswa saat konseling berlangsung.
+                </span>
+              </div>
+            </div>
+
+            {/* Sub-Tab Switcher */}
+            <div className="flex items-center gap-2 p-1.5 bg-[#E8F2FC] rounded-2xl max-w-fit border border-[#C5DDF6]">
+              <button
+                type="button"
+                onClick={() => setLearningTab('photos')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
+                  learningTab === 'photos'
+                    ? 'bg-[#1E5FA8] text-white shadow-xs'
+                    : 'text-[#163A5F] hover:bg-white/60'
+                }`}
+              >
+                <Image size={16} />
+                <span>Foto Referensi Konseling</span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    learningTab === 'photos'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                  }`}
+                >
+                  {photosList.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setLearningTab('memories')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
+                  learningTab === 'memories'
+                    ? 'bg-[#1E5FA8] text-white shadow-xs'
+                    : 'text-[#163A5F] hover:bg-white/60'
+                }`}
+              >
+                <Brain size={16} />
+                <span>Memori Pembelajaran AI</span>
+                <span
+                  className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                    learningTab === 'memories'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                  }`}
+                >
+                  {memoriesList.length}
+                </span>
+              </button>
+            </div>
+
+            {/* ============================================================== */}
+            {/* SUB-TAB 1: FOTO REFERENSI KONSELING                            */}
+            {/* ============================================================== */}
+            {learningTab === 'photos' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Form Upload Foto (Col 1) */}
+                <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+                  <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-sm sm:text-base border-b border-[#F0F7FF] pb-3">
+                    <UploadCloud size={18} className="text-[#1E5FA8]" />
+                    <span>Upload Foto Referensi Baru</span>
+                  </div>
+
+                  <form onSubmit={handleAddPhoto} className="space-y-3.5 text-xs sm:text-sm">
+                    {/* Drag / File Picker */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Pilih Gambar Foto dari Perangkat:
+                      </label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoFileSelect}
+                        className="w-full text-xs text-[#163A5F] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#E8F2FC] file:text-[#1E5FA8] hover:file:bg-[#D2E4F7] file:cursor-pointer cursor-pointer border border-[#C5DDF6] rounded-xl p-2 bg-[#F4F9FF]"
+                      />
+                    </div>
+
+                    {photoForm.preview && (
+                      <div className="relative rounded-xl overflow-hidden border border-[#C5DDF6] bg-slate-900 max-h-48 flex items-center justify-center">
+                        <img
+                          src={photoForm.preview}
+                          alt="Preview Upload"
+                          className="max-h-44 object-contain"
+                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPhotoForm((prev) => ({
+                              ...prev,
+                              base64Data: '',
+                              preview: '',
+                            }))
+                          }
+                          className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white p-1 rounded-lg text-xs"
+                          title="Hapus gambar pilihan"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Atau Gunakan URL External */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Atau Gunakan URL Gambar:
+                      </label>
+                      <input
+                        type="url"
+                        value={photoForm.fileUrl}
+                        onChange={(e) =>
+                          setPhotoForm((prev) => ({ ...prev, fileUrl: e.target.value }))
+                        }
+                        placeholder="https://... atau biarkan kosong jika upload file"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    {/* Judul Foto */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Judul Foto / Infografis Referensi *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={photoForm.title}
+                        onChange={(e) =>
+                          setPhotoForm((prev) => ({ ...prev, title: e.target.value }))
+                        }
+                        placeholder="Contoh: Diagram Komunikasi Asertif"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    {/* Kategori */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Kategori Konseling
+                      </label>
+                      <select
+                        value={photoForm.category}
+                        onChange={(e) =>
+                          setPhotoForm((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      >
+                        <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
+                        <option value="Komunikasi Efektif">Komunikasi Efektif</option>
+                        <option value="Kepercayaan Diri">Kepercayaan Diri</option>
+                        <option value="Mencegah Bullying">Mencegah Bullying</option>
+                        <option value="Bimbingan Konseling Umum">Bimbingan Konseling Umum</option>
+                      </select>
+                    </div>
+
+                    {/* Deskripsi Materi untuk AI */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Materi Edukasi yang Dipelajari AI dari Foto Ini:
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={photoForm.description}
+                        onChange={(e) =>
+                          setPhotoForm((prev) => ({
+                            ...prev,
+                            description: e.target.value,
+                          }))
+                        }
+                        placeholder="Jelaskan isi pesan foto agar AI memahami kapan foto ini harus dikirimkan dan cara menjelaskannya ke siswa..."
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <Plus size={16} />
+                      <span>Simpan & Upload Foto Referensi</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* Grid Katalog Foto (Col 2-3) */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                      Katalog Foto Referensi Tersedia ({photosList.length})
+                    </span>
+                    <span className="text-xs text-[#6B8BA4]">
+                      AI dapat mengirimkan kartu foto ini langsung ke ruang chat siswa
+                    </span>
+                  </div>
+
+                  {photosList.length === 0 ? (
+                    <div className="bg-white border border-[#C5DDF6] rounded-2xl p-8 text-center text-slate-400 text-xs sm:text-sm">
+                      Belum ada foto referensi yang diunggah. Unggah foto pertamamu melalui formulir di sebelah kiri.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {photosList.map((photo) => (
+                        <div
+                          key={photo.id}
+                          className="bg-white border border-[#C5DDF6] rounded-2xl overflow-hidden shadow-2xs flex flex-col justify-between transition hover:shadow-md"
+                        >
+                          <div>
+                            {/* Gambar Preview dengan Button Zoom */}
+                            <div className="relative pb-[58%] bg-slate-900 group">
+                              <img
+                                src={photo.file_url}
+                                alt={photo.title}
+                                className="absolute inset-0 w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src =
+                                    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=800&q=80';
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setZoomPhoto(photo)}
+                                className="absolute bottom-2.5 right-2.5 bg-black/60 hover:bg-black/80 text-white px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1 backdrop-blur-xs transition cursor-pointer"
+                              >
+                                <Eye size={13} />
+                                <span>Lihat Penuh</span>
+                              </button>
+                            </div>
+
+                            <div className="p-4 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                                  {photo.category}
+                                </span>
+                                <span className="font-mono text-slate-400 text-[10px]">
+                                  {photo.id}
+                                </span>
+                              </div>
+
+                              <h4 className="font-extrabold text-sm sm:text-base text-[#163A5F] leading-snug">
+                                {photo.title}
+                              </h4>
+
+                              <p className="text-xs text-[#4A6382] leading-relaxed line-clamp-3">
+                                {photo.description}
+                              </p>
+
+                              <div className="text-[11px] font-mono text-slate-400 truncate pt-1 border-t border-[#F0F7FF]">
+                                URL: {photo.file_url}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 pt-0 flex items-center justify-between border-t border-[#F0F7FF] mt-2">
+                            <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                              <CheckCircle2 size={12} />
+                              Aktif untuk AI
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePhoto(photo.id, photo.title)}
+                              className="text-red-500 hover:text-red-700 text-xs font-bold flex items-center gap-1 hover:bg-red-50 px-2.5 py-1 rounded transition cursor-pointer"
+                            >
+                              <Trash2 size={13} />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* SUB-TAB 2: MEMORI PEMBELAJARAN AI (DATABASE LEARNING)           */}
+            {/* ============================================================== */}
+            {learningTab === 'memories' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Form Tambah Memori Manual (Col 1) */}
+                <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+                  <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-sm sm:text-base border-b border-[#F0F7FF] pb-3">
+                    <Brain size={18} className="text-purple-600" />
+                    <span>Tambah Memori Pembelajaran Manual</span>
+                  </div>
+
+                  <form onSubmit={handleAddMemory} className="space-y-3.5 text-xs sm:text-sm">
+                    {/* Topik */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Topik Bimbingan
+                      </label>
+                      <select
+                        value={memoryForm.topicId}
+                        onChange={(e) =>
+                          setMemoryForm((prev) => ({ ...prev, topicId: e.target.value }))
+                        }
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      >
+                        <option value="general">Umum (Berlaku untuk Semua Topik)</option>
+                        <option value="friendship">Hubungan Pertemanan yang Tidak Sehat</option>
+                        <option value="communication">Komunikasi Efektif</option>
+                        <option value="confidence">Kepercayaan Diri</option>
+                        <option value="bullying">Mencegah Bullying</option>
+                      </select>
+                    </div>
+
+                    {/* Kategori */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Kategori Masalah
+                      </label>
+                      <input
+                        type="text"
+                        value={memoryForm.category}
+                        onChange={(e) =>
+                          setMemoryForm((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                        placeholder="Contoh: Pola Penolakan Teman Sebaya"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    {/* Pola Pertanyaan / Keluhan Siswa */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Pola Masalah / Keluhan Siswa *
+                      </label>
+                      <textarea
+                        rows={2}
+                        required
+                        value={memoryForm.queryPattern}
+                        onChange={(e) =>
+                          setMemoryForm((prev) => ({ ...prev, queryPattern: e.target.value }))
+                        }
+                        placeholder="Contoh: Siswa dijauhi teman sekelompok karena tidak mau ikut mencontek saat ujian..."
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    {/* Wawasan Solusi Terpelajar */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Solusi / Wawasan yang Dipelajari AI *
+                      </label>
+                      <textarea
+                        rows={3}
+                        required
+                        value={memoryForm.learnedInsight}
+                        onChange={(e) =>
+                          setMemoryForm((prev) => ({
+                            ...prev,
+                            learnedInsight: e.target.value,
+                          }))
+                        }
+                        placeholder="Tuliskan respon konseling terbaik yang harus diingat AI saat menghadapi pola masalah serupa..."
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    {/* Catatan Kunci */}
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Poin Kunci / Takeaway
+                      </label>
+                      <input
+                        type="text"
+                        value={memoryForm.keyTakeaway}
+                        onChange={(e) =>
+                          setMemoryForm((prev) => ({ ...prev, keyTakeaway: e.target.value }))
+                        }
+                        placeholder="Contoh: Kuatkan integritas moral siswa & validasi emosi"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <Plus size={16} />
+                      <span>Simpan ke Database Memori AI</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* List Memori Pembelajaran Terpelihara (Col 2-3) */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                        Database Memori Terpelihara ({memoriesList.length})
+                      </span>
+                      <p className="text-xs text-[#6B8BA4]">
+                        Termasuk hasil auto-learning dari sesi nyata siswa & input manual Guru BK
+                      </p>
+                    </div>
+                  </div>
+
+                  {memoriesList.length === 0 ? (
+                    <div className="bg-white border border-[#C5DDF6] rounded-2xl p-8 text-center text-slate-400 text-xs sm:text-sm">
+                      Belum ada memori pembelajaran yang tersimpan di database.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {memoriesList.map((mem) => (
+                        <div
+                          key={mem.id}
+                          className="bg-white border border-[#C5DDF6] rounded-2xl p-4 sm:p-5 shadow-2xs space-y-2.5 hover:border-purple-300 transition"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="bg-purple-100 text-purple-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                                {mem.category || 'Pembelajaran AI'}
+                              </span>
+                              <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                Topik: {mem.topic_id}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMemory(mem.id, mem.query_pattern)}
+                              className="text-red-400 hover:text-red-600 text-xs flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition cursor-pointer"
+                              title="Hapus memori ini"
+                            >
+                              <Trash2 size={13} />
+                              <span>Hapus</span>
+                            </button>
+                          </div>
+
+                          <div>
+                            <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
+                              Pola Pertanyaan / Masalah Siswa:
+                            </div>
+                            <div className="text-xs sm:text-sm font-bold text-[#163A5F]">
+                              "{mem.query_pattern}"
+                            </div>
+                          </div>
+
+                          <div className="bg-[#F8FBFF] p-3 rounded-xl border border-[#E2EEF9]">
+                            <div className="text-[11px] font-bold text-[#1E5FA8] uppercase tracking-wider mb-1">
+                              Wawasan Solusi yang Dipelajari AI:
+                            </div>
+                            <div className="text-xs sm:text-sm text-[#2B4C6F] leading-relaxed">
+                              {mem.learned_insight}
+                            </div>
+                            {mem.key_takeaway && (
+                              <div className="mt-2 text-xs font-semibold text-purple-700 pt-2 border-t border-[#E2EEF9]">
+                                💡 Kunci: {mem.key_takeaway}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                            <span>
+                              {mem.source_session_id
+                                ? `Dipelajari dari Sesi Percakapan #${mem.source_session_id}`
+                                : 'Input Pembelajaran Manual oleh Guru BK'}
+                            </span>
+                            <span>{mem.created_at || 'Baru saja'}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Modal Lightbox Zoom Foto */}
+            {zoomPhoto && (
+              <div
+                className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4"
+                onClick={() => setZoomPhoto(null)}
+              >
+                <div
+                  className="bg-white rounded-3xl overflow-hidden max-w-3xl w-full max-h-[90vh] flex flex-col shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="p-4 bg-[#102A45] text-white flex items-center justify-between">
+                    <div>
+                      <h3 className="font-extrabold text-base">{zoomPhoto.title}</h3>
+                      <p className="text-xs text-sky-300">{zoomPhoto.category}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setZoomPhoto(null)}
+                      className="p-1.5 rounded-full hover:bg-white/20 transition cursor-pointer"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="p-4 bg-slate-950 flex items-center justify-center overflow-auto max-h-[60vh]">
+                    <img
+                      src={zoomPhoto.file_url}
+                      alt={zoomPhoto.title}
+                      className="max-h-[55vh] object-contain rounded-xl"
+                    />
+                  </div>
+
+                  <div className="p-5 bg-white space-y-2">
+                    <p className="text-xs sm:text-sm text-[#243B55]">
+                      {zoomPhoto.description}
+                    </p>
+                    <div className="text-xs font-mono text-slate-400">
+                      File Path / URL: {zoomPhoto.file_url}
+                    </div>
                   </div>
                 </div>
               </div>

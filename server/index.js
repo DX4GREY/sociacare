@@ -10,10 +10,17 @@ const { TOPICS, SOCIAL_TIPS, ARTICLES, EDUCATIONAL_VIDEOS } = require('./counsel
 const {
   generateCounselorResponse,
   DEFAULT_SYSTEM_PERSONA,
+  callDeepSeekApi,
+  recordConversationLearning,
 } = require('./geminiService');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 const serverLogs = [];
 function addServerLog(level, message) {
@@ -30,7 +37,8 @@ function addServerLog(level, message) {
 addServerLog('INFO', 'SociaCare AI server initialized.');
 
 app.use(cors());
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '30mb' }));
+app.use('/uploads', express.static(uploadsDir));
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api') && !req.path.includes('/server-stats')) {
@@ -620,6 +628,16 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
       ]
     );
 
+    // Rekam pembelajaran AI secara asinkron dari percakapan nyata (Continuous Learning Model ke DB)
+    recordConversationLearning({
+      topicId: session.topic_id,
+      userMessage: content,
+      aiReplyContent: aiReply.content,
+      sessionId,
+    }).catch((learnErr) => {
+      console.warn('[Auto-Learning Storage Background Warning]', learnErr.message);
+    });
+
     const newStatus = aiReply.nextStage === 9 ? 'completed' : session.status;
     await query(
       `UPDATE chat_sessions
@@ -923,6 +941,11 @@ app.get('/api/admin/server-stats', requireAdmin, async (req, res) => {
       ? `${rawKey.slice(0, 6)}...${rawKey.slice(-4)}`
       : 'Belum diatur';
 
+    const rawDeepseekKey = (process.env.DEEPSEEK_API_KEY || '').trim();
+    const maskedDeepseekKey = rawDeepseekKey
+      ? `${rawDeepseekKey.slice(0, 6)}...${rawDeepseekKey.slice(-4)}`
+      : 'Belum diatur';
+
     const tSum = tokenSummaryRes.rows[0] || {};
 
     res.json({
@@ -948,6 +971,10 @@ app.get('/api/admin/server-stats', requireAdmin, async (req, res) => {
         },
         geminiConfigured: Boolean(rawKey),
         geminiMaskedKey: maskedKey,
+        geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+        deepseekConfigured: Boolean(rawDeepseekKey),
+        deepseekMaskedKey: maskedDeepseekKey,
+        deepseekModel: process.env.DEEPSEEK_MODEL || 'deepseek-chat',
       },
       database: {
         ...getEngineInfo(),
@@ -1051,11 +1078,78 @@ app.post('/api/admin/test-gemini', requireAdmin, async (req, res) => {
   }
 });
 
+app.post('/api/admin/test-deepseek', requireAdmin, async (req, res) => {
+  const t0 = Date.now();
+  const apiKey = (process.env.DEEPSEEK_API_KEY || '').trim();
+  if (!apiKey) {
+    return res.status(400).json({
+      ok: false,
+      latencyMs: 0,
+      error: 'DEEPSEEK_API_KEY belum dikonfigurasi di server/.env',
+    });
+  }
+
+  try {
+    const aiSettings = await getAiSettings();
+    const reply = await callDeepSeekApi({
+      apiKey,
+      topic: TOPICS[0],
+      userName: 'Admin Tester',
+      userMessage: 'Halo DeepSeek, ini adalah tes koneksi dari SociaCare AI Admin.',
+      conversationHistory: [],
+      nextStage: 3,
+      customSystemPersona: aiSettings.systemPersona,
+      keywordEmergency: false,
+      isClosingRequested: false,
+      isImageRequested: false,
+    });
+    const latencyMs = Date.now() - t0;
+    if (reply.usage) {
+      await recordTokenUsage({
+        sessionId: null,
+        userId: null,
+        usage: reply.usage,
+      });
+    }
+    addServerLog(
+      'ADMIN',
+      `Tes koneksi DeepSeek AI berhasil (${latencyMs} ms, ${
+        reply.usage?.totalTokens || 0
+      } token).`
+    );
+    res.json({
+      ok: true,
+      latencyMs,
+      usage: reply.usage,
+      sampleReply: reply.content,
+    });
+  } catch (err) {
+    addServerLog('ERROR', `Tes koneksi DeepSeek AI gagal: ${err.message}`);
+    res.status(500).json({
+      ok: false,
+      latencyMs: Date.now() - t0,
+      error: err.message,
+    });
+  }
+});
+
 app.post('/api/admin/config', requireAdmin, (req, res) => {
   try {
-    const { geminiApiKey, newAdminPassword } = req.body || {};
+    const {
+      geminiApiKey,
+      deepseekApiKey,
+      deepseekModel,
+      newAdminPassword,
+    } = req.body || {};
+
     if (typeof geminiApiKey === 'string' && geminiApiKey.trim()) {
       process.env.GEMINI_API_KEY = geminiApiKey.trim();
+    }
+    if (typeof deepseekApiKey === 'string') {
+      process.env.DEEPSEEK_API_KEY = deepseekApiKey.trim();
+    }
+    if (typeof deepseekModel === 'string' && deepseekModel.trim()) {
+      process.env.DEEPSEEK_MODEL = deepseekModel.trim();
     }
     if (typeof newAdminPassword === 'string' && newAdminPassword.trim()) {
       process.env.ADMIN_PASSWORD = newAdminPassword.trim();
@@ -1069,6 +1163,10 @@ app.post('/api/admin/config', requireAdmin, (req, res) => {
         'postgresql://postgres:postgres@127.0.0.1:5432/sociacare'
       }`,
       `GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ''}`,
+      `GEMINI_MODEL=${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}`,
+      `GEMINI_FALLBACK_MODELS=${process.env.GEMINI_FALLBACK_MODELS || 'gemini-2.0-flash,gemini-1.5-flash'}`,
+      `DEEPSEEK_API_KEY=${process.env.DEEPSEEK_API_KEY || ''}`,
+      `DEEPSEEK_MODEL=${process.env.DEEPSEEK_MODEL || 'deepseek-chat'}`,
       `ADMIN_PASSWORD=${process.env.ADMIN_PASSWORD || 'admin123'}`,
       '',
     ].join('\n');
@@ -1616,6 +1714,144 @@ app.delete('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
     const vidId = String(req.params.id);
     await query(`DELETE FROM content_videos WHERE id = $1`, [vidId]);
     addServerLog('ADMIN', `Admin menghapus video ID: ${vidId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// AI CONTINUOUS LEARNING & REFERENCE PHOTOS
+// ==========================================
+
+// 1. GET LEARNING MEMORIES
+app.get('/api/admin/learning-memory', requireAdmin, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT * FROM ai_learning_memory ORDER BY id DESC LIMIT 100`
+    );
+    res.json({ memories: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. ADD MANUAL LEARNING MEMORY
+app.post('/api/admin/learning-memory', requireAdmin, async (req, res) => {
+  try {
+    const topicId = String(req.body?.topicId || 'general').trim();
+    const category = String(req.body?.category || 'Manual Guru BK').trim();
+    const queryPattern = String(req.body?.queryPattern || '').trim();
+    const learnedInsight = String(req.body?.learnedInsight || '').trim();
+    const keyTakeaway = String(req.body?.keyTakeaway || '').trim();
+
+    if (!queryPattern || !learnedInsight) {
+      return res.status(400).json({ error: 'Pola masalah siswa dan solusi wawasan wajib diisi.' });
+    }
+
+    const result = await query(
+      `INSERT INTO ai_learning_memory (topic_id, category, query_pattern, learned_insight, key_takeaway)
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [topicId, category, queryPattern, learnedInsight, keyTakeaway]
+    );
+
+    addServerLog('ADMIN', `Admin menambahkan memori pembelajaran AI baru: "${queryPattern.slice(0, 50)}..."`);
+    res.status(201).json({ ok: true, id: result.rows[0]?.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. DELETE LEARNING MEMORY
+app.delete('/api/admin/learning-memory/:id', requireAdmin, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await query(`DELETE FROM ai_learning_memory WHERE id = $1`, [id]);
+    addServerLog('ADMIN', `Admin menghapus memori pembelajaran AI ID: ${id}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 4. GET REFERENCE PHOTOS
+app.get('/api/admin/photos', requireAdmin, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT * FROM ai_reference_photos ORDER BY id DESC`
+    );
+    res.json({ photos: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. UPLOAD / ADD REFERENCE PHOTO
+app.post('/api/admin/photos', requireAdmin, async (req, res) => {
+  try {
+    const title = String(req.body?.title || '').trim().slice(0, 150);
+    const category = String(req.body?.category || 'Bimbingan Konseling').trim().slice(0, 80);
+    const description = String(req.body?.description || '').trim();
+    let fileUrl = String(req.body?.fileUrl || '').trim();
+    const base64Data = req.body?.base64Data; // data:image/png;base64,....
+
+    if (!title || (!fileUrl && !base64Data)) {
+      return res.status(400).json({ error: 'Judul dan file foto / URL foto wajib diisi.' });
+    }
+
+    if (base64Data) {
+      const matches = String(base64Data).match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      let ext = '.png';
+      let buffer;
+      if (matches && matches.length === 3) {
+        const mime = matches[1].toLowerCase();
+        if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
+        else if (mime.includes('png')) ext = '.png';
+        else if (mime.includes('webp')) ext = '.webp';
+        else if (mime.includes('gif')) ext = '.gif';
+        buffer = Buffer.from(matches[2], 'base64');
+      } else {
+        buffer = Buffer.from(base64Data, 'base64');
+      }
+
+      const fileName = `ref_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${ext}`;
+      const filePath = path.join(uploadsDir, fileName);
+      fs.writeFileSync(filePath, buffer);
+      fileUrl = `/uploads/${fileName}`;
+    }
+
+    const photoId = `photo_${Date.now()}`;
+    await query(
+      `INSERT INTO ai_reference_photos (id, title, category, description, file_url)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [photoId, title, category, description, fileUrl]
+    );
+
+    addServerLog('ADMIN', `Admin mengunggah foto referensi konseling baru: "${title}" (${fileUrl})`);
+    res.status(201).json({ ok: true, id: photoId, fileUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. DELETE REFERENCE PHOTO
+app.delete('/api/admin/photos/:id', requireAdmin, async (req, res) => {
+  try {
+    const photoId = String(req.params.id);
+    const existing = await query(`SELECT file_url FROM ai_reference_photos WHERE id = $1`, [photoId]);
+    if (existing.rows.length > 0) {
+      const fUrl = existing.rows[0].file_url;
+      if (fUrl && fUrl.startsWith('/uploads/')) {
+        const localPath = path.join(__dirname, fUrl);
+        if (fs.existsSync(localPath)) {
+          try {
+            fs.unlinkSync(localPath);
+          } catch {}
+        }
+      }
+    }
+    await query(`DELETE FROM ai_reference_photos WHERE id = $1`, [photoId]);
+    addServerLog('ADMIN', `Admin menghapus foto referensi ID: ${photoId}`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
