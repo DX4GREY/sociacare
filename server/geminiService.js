@@ -9,7 +9,7 @@ const ipv4Agent = new https.Agent({
   family: 4,
 });
 
-function postJsonIPv4(urlString, payload) {
+function postJsonIPv4(urlString, payload, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(urlString);
     const bodyString = JSON.stringify(payload);
@@ -24,6 +24,7 @@ function postJsonIPv4(urlString, payload) {
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(bodyString),
+          ...extraHeaders,
         },
       },
       (res) => {
@@ -42,8 +43,8 @@ function postJsonIPv4(urlString, payload) {
       }
     );
 
-    req.setTimeout(5000, () => {
-      req.destroy(new Error('Request timeout connecting to Gemini API'));
+    req.setTimeout(8000, () => {
+      req.destroy(new Error(`Request timeout connecting to ${urlObj.hostname}`));
     });
 
     req.on('error', (err) => {
@@ -243,7 +244,39 @@ async function generateCounselorResponse({
       nextStage: finalIsClosing ? 9 : nextStage === 3 ? 35 : nextStage,
     };
   } catch (err) {
-    console.error(`[SociaCare AI Fallback] Error saat memproses Gemini: ${err.message}`);
+    console.error(`[SociaCare AI Fallback] Seluruh model Gemini gagal: ${err.message}`);
+
+    // Fallback AI Terakhir: DeepSeek API jika DEEPSEEK_API_KEY dikonfigurasi di server/.env
+    const deepseekKey = (process.env.DEEPSEEK_API_KEY || '').trim();
+    if (deepseekKey) {
+      try {
+        const deepseekResult = await callDeepSeekApi({
+          apiKey: deepseekKey,
+          topic,
+          userName,
+          userMessage,
+          conversationHistory,
+          nextStage,
+          customSystemPersona,
+          keywordEmergency,
+          isClosingRequested,
+          isImageRequested,
+        });
+
+        const finalIsClosing = Boolean(
+          isClosingRequested || deepseekResult.structured?.isClosing
+        );
+
+        return {
+          ...deepseekResult,
+          nextStage: finalIsClosing ? 9 : nextStage === 3 ? 35 : nextStage,
+        };
+      } catch (dsErr) {
+        console.error(`[SociaCare AI Fallback] DeepSeek fallback juga gagal: ${dsErr.message}. Mengalihkan ke konselor lokal.`);
+      }
+    } else {
+      console.warn('[SociaCare AI Fallback] DEEPSEEK_API_KEY belum dikonfigurasi di server/.env. Beralih ke konselor fallback lokal.');
+    }
 
     if (isClosingRequested) {
       return {
@@ -365,20 +398,17 @@ async function generateCounselorResponse({
   }
 }
 
-async function callGeminiApi({
-  apiKey,
+function buildCounselorSystemPrompt({
   topic,
   userName,
   userMessage,
-  conversationHistory,
   nextStage,
   customSystemPersona,
   keywordEmergency,
   isClosingRequested,
   isImageRequested,
+  topicInfographic,
 }) {
-  const topicInfographic = EDUCATIONAL_INFOGRAPHICS[topic.id] || null;
-
   const stageGuidance = isClosingRequested
     ? `PENGGUNA MEMILIH UNTUK MENUTUP / MENGAKHIRI PEMBICARAAN KONSELING.
 Berikan pesan penutup konseling yang sangat hangat, mengapresiasi keberanian "${userName || 'Teman'}" karena sudah berbagi cerita hari ini, rangkum singkat penguatan positif dari obrolan sebelumnya, dan sampaikan bahwa pintu SociaCare AI selalu terbuka kapan pun ia ingin bercerita lagi.
@@ -403,7 +433,7 @@ JANGAN PERNAH menolak atau berkata "aku belum bisa menampilkan gambar"! Nyatakan
     .replace(/\{kelas\}/gi, '')
     .replace(/\{topik\}/gi, topic.title);
 
-  const systemPrompt = `${basePersona}
+  return `${basePersona}
 Topik konseling yang dipilih: "${topic.title}".
 Nama: "${userName}".
 
@@ -473,6 +503,32 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
   "emergencyReason": "",
   "emergencyWarning": ""
 }`;
+}
+
+async function callGeminiApi({
+  apiKey,
+  topic,
+  userName,
+  userMessage,
+  conversationHistory,
+  nextStage,
+  customSystemPersona,
+  keywordEmergency,
+  isClosingRequested,
+  isImageRequested,
+}) {
+  const topicInfographic = EDUCATIONAL_INFOGRAPHICS[topic.id] || null;
+  const systemPrompt = buildCounselorSystemPrompt({
+    topic,
+    userName,
+    userMessage,
+    nextStage,
+    customSystemPersona,
+    keywordEmergency,
+    isClosingRequested,
+    isImageRequested,
+    topicInfographic,
+  });
 
   const contents = [
     ...conversationHistory.slice(-10).map((msg) => ({
@@ -716,8 +772,184 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
   throw lastError || new Error('Gagal mendapatkan respons dari seluruh model Gemini API.');
 }
 
+async function callDeepSeekApi({
+  apiKey,
+  topic,
+  userName,
+  userMessage,
+  conversationHistory,
+  nextStage,
+  customSystemPersona,
+  keywordEmergency,
+  isClosingRequested,
+  isImageRequested,
+}) {
+  const modelName = (process.env.DEEPSEEK_MODEL || 'deepseek-chat').trim();
+  const url = 'https://api.deepseek.com/chat/completions';
+  const topicInfographic = EDUCATIONAL_INFOGRAPHICS[topic.id] || null;
+
+  const systemPrompt = buildCounselorSystemPrompt({
+    topic,
+    userName,
+    userMessage,
+    nextStage,
+    customSystemPersona,
+    keywordEmergency,
+    isClosingRequested,
+    isImageRequested,
+    topicInfographic,
+  });
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...conversationHistory.slice(-10).map((msg) => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.content,
+    })),
+    { role: 'user', content: userMessage },
+  ];
+
+  const t0 = Date.now();
+  console.log(`[SociaCare AI Fallback] Mengalihkan ke DeepSeek API (${modelName}) sebagai fallback terakhir...`);
+
+  const res = await postJsonIPv4(
+    url,
+    {
+      model: modelName,
+      messages,
+      response_format: { type: 'json_object' },
+      temperature: 0.7,
+    },
+    {
+      Authorization: `Bearer ${apiKey}`,
+    }
+  );
+
+  const latencyMs = Date.now() - t0;
+
+  if (!res.ok) {
+    throw new Error(`DeepSeek API (${modelName}) HTTP ${res.status}: ${res.text}`);
+  }
+
+  const data = JSON.parse(res.text);
+  const choice = data?.choices?.[0];
+  const rawContent = choice?.message?.content || '';
+
+  if (!rawContent) {
+    throw new Error('Respons DeepSeek API tidak berisi teks valid.');
+  }
+
+  const cleaned = rawContent
+    .trim()
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/, '');
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    parsed = {
+      intro: rawContent.trim(),
+      checklist: [],
+      tipBox: null,
+      footerText: '',
+      quickReplies: ['Masih ada', 'Tidak, cukup'],
+    };
+  }
+
+  const isClosingDetected = Boolean(isClosingRequested || parsed.isClosing);
+  const isEmergencyDetected =
+    !isClosingDetected &&
+    Boolean(
+      parsed.isEmergency ||
+        parsed.emergencyLevel === 'critical' ||
+        keywordEmergency
+    );
+
+  const emergencyWarningText = isEmergencyDetected
+    ? parsed.emergencyWarning ||
+      `PERINGATAN DARURAT AI: Halo ${
+        userName || 'Teman'
+      }, sistem SociaCare AI mendeteksi kamu sedang berada dalam kondisi yang sangat berat dan darurat. Keselamatan dan nyawamu sangatlah berharga. Mohon jangan hadapi ini sendirian dan segera hubungi Konselor / Guru BK atau layanan darurat 119 ext 8.`
+    : '';
+
+  const emergencyReasonText = isEmergencyDetected
+    ? parsed.emergencyReason ||
+      `Terdeteksi indikasi krisis darurat / kondisi sangat parah dari pesan pengguna: "${String(
+        userMessage || ''
+      ).slice(0, 120)}"`
+    : '';
+
+  const defaultQuickReplies = isClosingDetected
+    ? ['Selesai & Penutup 💙', 'Pilih Topik Baru', 'Fitur Lainnya']
+    : isEmergencyDetected
+    ? [
+        '🚨 Hubungi Guru BK',
+        'Aku butuh ditemani sekarang',
+        'Aku akan mencari tempat aman',
+      ]
+    : ['Masih ada', 'Tutup Pembicaraan'];
+
+  const usageMeta = data?.usage || {};
+  const promptTokens = Number(usageMeta.prompt_tokens || 0);
+  const completionTokens = Number(usageMeta.completion_tokens || 0);
+  const totalTokens = Number(usageMeta.total_tokens || promptTokens + completionTokens);
+
+  console.log(`[SociaCare AI Fallback] Berhasil dijawab oleh DeepSeek (${modelName}) dalam ${latencyMs} ms!`);
+
+  return {
+    content: parsed.intro || rawContent.trim(),
+    structured: {
+      checklist: isClosingDetected
+        ? []
+        : Array.isArray(parsed.checklist)
+        ? parsed.checklist
+        : [],
+      tipBox:
+        !isClosingDetected && parsed.tipBox && parsed.tipBox.text
+          ? parsed.tipBox
+          : null,
+      infographic: isClosingDetected
+        ? null
+        : parsed.infographic && parsed.infographic.url
+        ? parsed.infographic
+        : isImageRequested
+        ? topicInfographic
+        : null,
+      footerText: parsed.footerText || '',
+      quickReplies: isClosingDetected
+        ? ['Selesai & Penutup 💙', 'Pilih Topik Baru', 'Fitur Lainnya']
+        : isEmergencyDetected
+        ? [
+            'Hubungi Guru BK',
+            ...(Array.isArray(parsed.quickReplies)
+              ? parsed.quickReplies.filter((q) => q !== 'Hubungi Guru BK').slice(0, 2)
+              : ['Aku butuh ditemani sekarang']),
+          ]
+        : Array.isArray(parsed.quickReplies) && parsed.quickReplies.length > 0
+        ? parsed.quickReplies
+        : defaultQuickReplies,
+      isClosing: isClosingDetected,
+      isEmergency: isEmergencyDetected,
+      emergencyLevel: isEmergencyDetected ? 'critical' : 'normal',
+      emergencyWarning: emergencyWarningText,
+      emergencyReason: emergencyReasonText,
+    },
+    usage: {
+      modelName: `deepseek/${modelName}`,
+      promptTokens,
+      completionTokens,
+      thoughtTokens: 0,
+      totalTokens,
+      latencyMs,
+    },
+  };
+}
+
 module.exports = {
   generateCounselorResponse,
   DEFAULT_SYSTEM_PERSONA,
   getModelFallbackChain,
+  callDeepSeekApi,
 };
