@@ -934,7 +934,9 @@ export default function ChatPage() {
                     >
                       {/* Message Content (Dynamic formatting / Markdown support) */}
                       <div className="space-y-1 text-xs sm:text-sm md:text-base leading-relaxed">
-                        {formatChatMessageText(msg.content)}
+                        {formatChatMessageText(
+                          msg.content || struct.footerText || 'Aku mendengarkanmu. Ada yang ingin kamu tanyakan atau ceritakan lagi?'
+                        )}
                       </div>
                     </div>
                     <StudentAvatar
@@ -987,7 +989,9 @@ export default function ChatPage() {
 
                       {/* Message Content (Dynamic formatting / Markdown support) */}
                       <div className="space-y-1 text-xs sm:text-sm md:text-base leading-relaxed">
-                        {formatChatMessageText(msg.content)}
+                        {formatChatMessageText(
+                          msg.content || struct.footerText || 'Aku mendengarkanmu. Ada yang ingin kamu tanyakan atau ceritakan lagi?'
+                        )}
                       </div>
 
                       {/* Checkmark Solution Items */}

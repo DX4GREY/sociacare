@@ -134,6 +134,97 @@ async function recordConversationLearning({ topicId, userMessage, aiReplyContent
   }
 }
 
+function getTomorrowDateTimeInfo() {
+  const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  const now = new Date();
+  const jakartaTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  const tomorrow = new Date(jakartaTime);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowDay = days[tomorrow.getDay()];
+  const tomorrowDate = new Intl.DateTimeFormat('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(tomorrow);
+  return { tomorrowDay, tomorrowDate, formatted: `${tomorrowDay}, ${tomorrowDate}` };
+}
+
+function resolveFallbackTimeOrGeneral(userMessage, dateTimeContext, userName) {
+  const raw = String(userMessage || '').toLowerCase();
+  const name = userName || 'Teman';
+  const tmr = getTomorrowDateTimeInfo();
+  const dt = dateTimeContext || getCurrentDateTimeContext();
+
+  const isTomorrowDayQuery = /besok\s*(hari|tanggal)\s*apa|(hari|tanggal)\s*apa\s*besok/i.test(raw);
+  const isTimeQuery = /jam\s*berapa|pukul\s*berapa|sekarang\s*jam/i.test(raw);
+  const isTodayQuery = /hari\s*ini\s*hari\s*apa|hari\s*apa\s*hari\s*ini|sekarang\s*hari\s*apa/i.test(raw);
+
+  if (isTomorrowDayQuery) {
+    return `Hari ini adalah hari ${dt.dateString}, jadi besok adalah hari **${tmr.formatted}**. Ada rencana atau kegiatan tertentu yang sedang kamu persiapkan untuk besok, ${name}?`;
+  }
+  if (isTimeQuery) {
+    return `Saat ini pukul **${dt.timeString} WIB** (Waktu ${dt.period}). Ada yang bisa aku bantu atau ingin kamu obrolin di jam segini, ${name}?`;
+  }
+  if (isTodayQuery) {
+    return `Hari ini adalah hari **${dt.dateString}** (Pukul ${dt.timeString} WIB). Ada yang sedang kamu pikirkan seputar hari ini, ${name}?`;
+  }
+
+  return `Halo ${name}, aku mendengarkanmu dengan baik. Boleh ceritakan lebih lanjut apa yang sedang kamu rasakan atau alami?`;
+}
+
+function extractMessageContent(parsed, rawContent, userMessage, dateTimeContext, userName) {
+  let contentText = '';
+  if (typeof parsed?.intro === 'string' && parsed.intro.trim()) {
+    contentText = parsed.intro.trim();
+  } else if (typeof parsed?.message === 'string' && parsed.message.trim()) {
+    contentText = parsed.message.trim();
+  } else if (typeof parsed?.content === 'string' && parsed.content.trim()) {
+    contentText = parsed.content.trim();
+  } else if (typeof parsed?.response === 'string' && parsed.response.trim()) {
+    contentText = parsed.response.trim();
+  } else if (typeof parsed?.reply === 'string' && parsed.reply.trim()) {
+    contentText = parsed.reply.trim();
+  } else if (typeof parsed?.text === 'string' && parsed.text.trim()) {
+    contentText = parsed.text.trim();
+  } else if (typeof parsed?.jawaban === 'string' && parsed.jawaban.trim()) {
+    contentText = parsed.jawaban.trim();
+  } else if (typeof parsed?.pesan === 'string' && parsed.pesan.trim()) {
+    contentText = parsed.pesan.trim();
+  } else if (typeof parsed?.footerText === 'string' && parsed.footerText.trim()) {
+    contentText = parsed.footerText.trim();
+    parsed.footerText = '';
+  }
+
+  if (!contentText && parsed && typeof parsed === 'object') {
+    const stringValues = Object.entries(parsed)
+      .filter(
+        ([k, v]) =>
+          typeof v === 'string' &&
+          v.trim().length > 0 &&
+          !['emergencyLevel', 'emergencyReason', 'emergencyWarning'].includes(k)
+      )
+      .map(([, v]) => v.trim());
+    if (stringValues.length > 0) {
+      stringValues.sort((a, b) => b.length - a.length);
+      contentText = stringValues[0];
+    }
+  }
+
+  if (!contentText && rawContent) {
+    const raw = String(rawContent).trim();
+    if (!raw.startsWith('{')) {
+      contentText = raw;
+    }
+  }
+
+  // Jika tetap kosong sama sekali, gunakan fallback cerdas berbasis waktu atau percakapan ramah
+  if (!contentText) {
+    contentText = resolveFallbackTimeOrGeneral(userMessage, dateTimeContext, userName);
+  }
+
+  return contentText;
+}
+
 const DEFAULT_SYSTEM_PERSONA = `Kamu adalah "SociaCare AI", konselor sebaya dan asisten Bimbingan Konseling (BK) yang hangat, cerdas, empatik, dan suportif bagi pelajar maupun mahasiswa. Gunakan bahasa Indonesia yang ramah dan akrab (gunakan sapaan "Aku" dan "kamu", serta sesekali sebut nama "{nama}").`;
 
 const EMERGENCY_PATTERNS = [
@@ -531,23 +622,29 @@ Wajib set "isClosing": true, biarkan "checklist": [], "tipBox": null, "infograph
 Sambut permintaan mereka dengan antusias dan ramah, jelaskan secara singkat isi gambar tersebut, dan WAJIB sertakan objek "infographic" dari salah satu foto referensi di katalog database di bawah.
 JANGAN PERNAH menolak atau berkata "aku belum bisa menampilkan gambar"! Nyatakan bahwa kamu menyertakan kartu foto referensi visual tersebut di bawah ini.`
     : nextStage === 3
-    ? `Pengguna baru mulai bercerita. Dengarkan dengan penuh empati, tanggapi isi pesan secara spesifik dan natural, lalu ajukan 1 pertanyaan lembut untuk menggali cerita/perasaan mereka lebih dalam. Di tahap awal ini, cukup balas dengan teks biasa ("checklist": [], "tipBox": null, "infographic": null).`
+    ? `Pengguna baru mulai bercerita atau menyapa. Dengarkan dengan penuh empati, tanggapi isi pesan secara spesifik dan natural (atau jawab langsung pertanyaan mereka jika bertanya tentang waktu, hari, atau hal santai), lalu ajukan 1 pertanyaan ramah untuk menggali cerita lebih dalam. Tuliskan jawaban lengkapmu di "intro" ("checklist": [], "tipBox": null, "infographic": null).`
     : nextStage === 4
-    ? `Tanggapi cerita pengguna secara kontekstual dan empatik. Kamu bebas memilih format balasan: jika pengguna membutuhkan panduan praktis, kamu boleh menyertakan "checklist" solusi atau foto referensi "infographic". Jika percakapan lebih cocok dijawab dengan chat biasa, cukup balas dengan teks percakapan biasa tanpa checklist.`
-    : `Jawab pertanyaan atau tanggapan pengguna secara kontekstual sesuai topik "${topic.title}". Pilih format balasan secara custom: bisa teks biasa saja, teks + tips, teks + checklist, atau teks + foto referensi bimbingan konseling. Sesuaikan dengan apa yang paling membantu pengguna saat ini.`;
+    ? `Tanggapi cerita atau pertanyaan pengguna secara kontekstual dan empatik. Kamu bebas memilih format balasan: jika pengguna membutuhkan panduan praktis, kamu boleh menyertakan "checklist" solusi atau foto referensi "infographic". Jika percakapan santai, pertanyaan umum, atau curhat biasa, cukup balas dengan teks percakapan ramah dan lengkap di "intro" tanpa checklist.`
+    : `Tanggapi pertanyaan atau tanggapan pengguna secara kontekstual. Jika bertanya tentang waktu, jam, atau kalender, jawablah langsung dan tepat. Jika membahas topik "${topic.title}", berikan panduan yang mendukung. Tuliskan jawaban lengkapmu di "intro".`;
 
   const basePersona = (customSystemPersona || DEFAULT_SYSTEM_PERSONA)
     .replace(/\{nama\}/gi, userName || 'Teman')
     .replace(/\{kelas\}/gi, '')
     .replace(/\{topik\}/gi, topic.title);
 
+  const tmr = getTomorrowDateTimeInfo();
   const timeAwarenessSection = dateTimeContext
-    ? `AKSES WAKTU & KALENDER REAL-TIME (JAM & TANGGAL AKTIF):
+    ? `AKSES WAKTU & KALENDER REAL-TIME (JAM & TANGGAL AKTIF SISTEM):
 Saat ini adalah: ${dateTimeContext.formatted}.
 - Waktu lokal: ${dateTimeContext.timeString} WIB
-- Hari & Tanggal: ${dateTimeContext.dateString}
-- Suasana Waktu: ${dateTimeContext.period}
-Gunakan konteks waktu ini secara alami jika relevan (misalnya sapaan "Selamat ${dateTimeContext.period}", mengenali jam belajar sekolah, istirahat, atau malam hari saat siswa bercerita).`
+- Hari & Tanggal Hari Ini: ${dateTimeContext.dateString}
+- Suasana Waktu Saat Ini: ${dateTimeContext.period}
+- Hari Besok: ${tmr.formatted}
+
+PANDUAN MENJAWAB WAKTU, KALENDER, & PERTANYAAN SANTAI:
+Jika pengguna bertanya tentang waktu (misal: "besok hari apa?", "jam berapa sekarang?", "tanggal berapa hari ini?", sapaan santai):
+Jawablah secara LANGSUNG, TEPAT, dan RAMAH menggunakan data real-time di atas (misalnya sebutkan bahwa besok adalah hari ${tmr.formatted}), lalu hubungkan kembali dengan ramah ke obrolan konseling.
+WAJIB TULISKAN JAWABANMU LENGKAP DI FIELD "intro". JANGAN PERNAH MENGOSONGKAN BALASAN ATAU MENGISI "intro" DENGAN STRING KOSONG ""`
     : '';
 
   const learningMemorySection =
@@ -604,13 +701,13 @@ KEBEBASAN FORMAT PESAN (KUSTOMISASI PENUH OLEH AI):
 Kamu memiliki otonomi dan kebebasan penuh dalam menentukan format dan bentuk pesan balasanmu agar interaksi terasa hidup, fleksibel, mengalir alami, dan tidak kaku seperti robot template:
 
 1. CHAT BIASA (HANYA TEKS MURNI TANPA CHECKLIST/GAMBAR):
-   - Jika pengguna sedang menyapa, curhat mengalir, mengobrol santai, mengajukan pertanyaan umum, atau saat respons cukup dijawab dengan penjelasan teks ramah:
-   - Tuliskan pesanmu secara lengkap dan mengalir di "intro".
+   - Jika pengguna sedang menyapa, curhat mengalir, mengobrol santai, mengajukan pertanyaan umum (seperti menanyakan waktu/hari/tanggal), atau saat respons cukup dijawab dengan penjelasan teks ramah:
+   - TULISKAN PESANMU SECARA LENGKAP DAN MENGALIR DI "intro" (WAJIB DIISI, TIDAK BOLEH STRING KOSONG "").
    - Atur "checklist": [], "tipBox": null, dan "infographic": null.
    - JANGAN memaksakan badge checklist biru atau gambar jika percakapan tidak membutuhkannya! Chat biasa teks murni sangat disukai untuk menjaga obrolan tetap akrab dan tidak menggurui.
 
 2. CHAT DENGAN CHECKLIST SOLUSI:
-   - Gunakan "checklist": ["Langkah 1", "Langkah 2", ...] HANYA saat pengguna meminta solusi langkah demi langkah ("gimana caranya?", "ada solusinya?", "tipsnya apa?"), atau saat kamu merasa pengguna butuh panduan tindakan yang terstruktur.
+   - Gunakan "checklist": ["Langkah 1", "Langkah 2", ...] HANYA saat pengguna meminta solusi langkah demi langkah ("gimana caranya?", "ada solusinya?", "tipsnya apa?"), atau saat kamu merasa pengguna butuh panduan tindakan yang terstruktur. Tuliskan pengantar yang ramah di "intro".
 
 3. CHAT DENGAN TIP BOX (LAMPU KUNING 💡):
    - Gunakan "tipBox": { "title": "Tips Tambahan:", "text": "..." } HANYA jika ada 1 catatan penting atau pengingat positif yang ingin kamu sorot secara khusus. Jika tidak perlu, biarkan null.
@@ -626,6 +723,7 @@ Kamu memiliki otonomi dan kebebasan penuh dalam menentukan format dan bentuk pes
      * Teks biasa + tipbox
      * Teks biasa + checklist + tipbox + foto referensi
    Tentukan sendiri bentuk yang paling pas dan nyaman untuk pengguna!
+   INGAT: Field "intro" HARUS SELALU BERISI TEKS BALASAN UTAMA KAMU KEPADA PENGGUNA.
 
 DETEKSI KONDISI GAWAT DARURAT / SANGAT PARAH (PENTING!):
 Analisis apakah pesan pengguna menunjukkan kondisi DARURAT / SANGAT PARAH, seperti:
@@ -646,11 +744,11 @@ Jika pengguna menyatakan sudah cukup bercerita, ingin mengakhiri/menutup sesi pe
 
 Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) dengan struktur berikut:
 {
-  "intro": "Pesan utama kamu (bisa chat teks biasa yang ramah atau penjelasan lengkap)",
+  "intro": "WAJIB DIISI LENGKAP! Pesan utama balasan kamu kepada pengguna. JANGAN PERNAH MENGOSONGKAN ATAU MENJADIKAN STRING KOSONG ''",
   "checklist": [],
   "tipBox": null,
   "infographic": null,
-  "footerText": "Pertanyaan pemantik atau kalimat penutup hangat (bisa kosong '' jika tidak diperlukan)",
+  "footerText": "Pertanyaan pemantik ramah atau kalimat penutup hangat (bisa kosong '' jika tidak diperlukan)",
   "quickReplies": ["Balasan singkat 1", "Balasan singkat 2"],
   "isClosing": false,
   "isEmergency": false,
@@ -843,8 +941,16 @@ async function callGeminiApi({
             ]
           : ['Masih ada', 'Tutup Pembicaraan'];
 
+        const contentText = extractMessageContent(
+          parsed,
+          textPart.text,
+          userMessage,
+          dateTimeContext,
+          userName
+        );
+
         return {
-          content: parsed.intro || textPart.text.trim(),
+          content: contentText,
           structured: {
             checklist: isClosingDetected
               ? []
@@ -1065,8 +1171,16 @@ async function callDeepSeekApi({
 
   console.log(`[SociaCare AI Fallback] Berhasil dijawab oleh DeepSeek (${modelName}) dalam ${latencyMs} ms!`);
 
+  const contentText = extractMessageContent(
+    parsed,
+    rawContent,
+    userMessage,
+    dateTimeContext,
+    userName
+  );
+
   return {
-    content: parsed.intro || rawContent.trim(),
+    content: contentText,
     structured: {
       checklist: isClosingDetected
         ? []
@@ -1121,4 +1235,6 @@ module.exports = {
   callDeepSeekApi,
   getCurrentDateTimeContext,
   recordConversationLearning,
+  resolveFallbackTimeOrGeneral,
+  extractMessageContent,
 };

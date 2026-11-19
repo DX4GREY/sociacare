@@ -12,6 +12,8 @@ const {
   DEFAULT_SYSTEM_PERSONA,
   callDeepSeekApi,
   recordConversationLearning,
+  resolveFallbackTimeOrGeneral,
+  getCurrentDateTimeContext,
 } = require('./geminiService');
 
 const app = express();
@@ -561,6 +563,11 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
           latencyMs: 1,
         },
       };
+    }
+
+    if (!aiReply.content || !aiReply.content.trim()) {
+      const dt = getCurrentDateTimeContext();
+      aiReply.content = resolveFallbackTimeOrGeneral(content, dt, user.name);
     }
 
     if (aiReply.usage) {
