@@ -5,6 +5,7 @@ import {
   SociaHeartLogo,
   ExtraTipsIcon,
   ExtraArticleIcon,
+  ExtraVideoIcon,
   ExtraGuruBkIcon,
   ExtraHistoryIcon,
 } from '../components/Illustrations';
@@ -18,6 +19,11 @@ import {
   Trash2,
   MessageSquare,
   Send,
+  Play,
+  Tv,
+  Clock,
+  X,
+  Sparkles,
 } from 'lucide-react';
 
 export default function ExtrasPage() {
@@ -38,6 +44,7 @@ export default function ExtrasPage() {
   } = useApp();
 
   const [selectedArticle, setSelectedArticle] = useState(null);
+  const [selectedVideo, setSelectedVideo] = useState(null);
   const [chatInput, setChatInput] = useState('');
 
   // Map route params to active tab
@@ -95,6 +102,7 @@ export default function ExtrasPage() {
               { id: null, label: 'Semua Fitur' },
               { id: 'tips', label: 'Tips Sosial' },
               { id: 'articles', label: 'Artikel Informasi' },
+              { id: 'videos', label: 'Video Edukasi' },
               { id: 'counselor', label: 'Hubungi Guru BK' },
               { id: 'history', label: 'Riwayat Chat' },
             ].map((t) => (
@@ -143,67 +151,83 @@ export default function ExtrasPage() {
                 Fitur Lainnya
               </h2>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
                 <button
                   type="button"
                   onClick={() => handleTabClick('tips')}
-                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[230px] cursor-pointer"
+                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[220px] cursor-pointer"
                 >
                   <div className="mb-3.5 transform group-hover:scale-110 transition">
-                    <ExtraTipsIcon size={56} />
+                    <ExtraTipsIcon size={52} />
                   </div>
-                  <span className="font-extrabold text-sm sm:text-lg text-[#163A5F]">
+                  <span className="font-extrabold text-sm sm:text-base text-[#163A5F]">
                     Tips Sosial
                   </span>
-                  <span className="hidden sm:block text-xs sm:text-sm text-[#4A6382] mt-1.5">
-                    Panduan praktis pergaulan sehat
+                  <span className="hidden sm:block text-xs text-[#4A6382] mt-1.5">
+                    Panduan praktis pergaulan
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleTabClick('articles')}
-                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[230px] cursor-pointer"
+                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[220px] cursor-pointer"
                 >
                   <div className="mb-3.5 transform group-hover:scale-110 transition">
-                    <ExtraArticleIcon size={56} />
+                    <ExtraArticleIcon size={52} />
                   </div>
-                  <span className="font-extrabold text-sm sm:text-lg text-[#163A5F]">
+                  <span className="font-extrabold text-sm sm:text-base text-[#163A5F]">
                     Artikel Informasi
                   </span>
-                  <span className="hidden sm:block text-xs sm:text-sm text-[#4A6382] mt-1.5">
-                    Edukasi psikologi & sosial remaja
+                  <span className="hidden sm:block text-xs text-[#4A6382] mt-1.5">
+                    Edukasi psikologi remaja
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleTabClick('videos')}
+                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[220px] cursor-pointer"
+                >
+                  <div className="mb-3.5 transform group-hover:scale-110 transition">
+                    <ExtraVideoIcon size={52} />
+                  </div>
+                  <span className="font-extrabold text-sm sm:text-base text-[#163A5F]">
+                    Video Edukasi
+                  </span>
+                  <span className="hidden sm:block text-xs text-[#4A6382] mt-1.5">
+                    Video & animasi bimbingan
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleTabClick('counselor')}
-                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[230px] cursor-pointer"
+                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[220px] cursor-pointer"
                 >
                   <div className="mb-3.5 transform group-hover:scale-110 transition">
-                    <ExtraGuruBkIcon size={56} />
+                    <ExtraGuruBkIcon size={52} />
                   </div>
-                  <span className="font-extrabold text-sm sm:text-lg text-[#163A5F]">
+                  <span className="font-extrabold text-sm sm:text-base text-[#163A5F]">
                     Hubungi Guru BK
                   </span>
-                  <span className="hidden sm:block text-xs sm:text-sm text-[#4A6382] mt-1.5">
-                    Jadwalkan sesi bersama Guru BK
+                  <span className="hidden sm:block text-xs text-[#4A6382] mt-1.5">
+                    Jadwalkan sesi tatap muka
                   </span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => handleTabClick('history')}
-                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[230px] cursor-pointer"
+                  className="group bg-[#E8F2FC] hover:bg-[#DCEBFA] border-2 border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-5 sm:p-6 flex flex-col items-center justify-center text-center transition shadow-xs hover:shadow-md min-h-[170px] sm:min-h-[220px] cursor-pointer col-span-2 sm:col-span-1"
                 >
                   <div className="mb-3.5 transform group-hover:scale-110 transition">
-                    <ExtraHistoryIcon size={56} />
+                    <ExtraHistoryIcon size={52} />
                   </div>
-                  <span className="font-extrabold text-sm sm:text-lg text-[#163A5F]">
+                  <span className="font-extrabold text-sm sm:text-base text-[#163A5F]">
                     Riwayat Chat
                   </span>
-                  <span className="hidden sm:block text-xs sm:text-sm text-[#1E5FA8] font-semibold mt-1.5">
+                  <span className="hidden sm:block text-xs text-[#1E5FA8] font-semibold mt-1.5">
                     {userSessions.length} sesi tersimpan
                   </span>
                 </button>
@@ -369,6 +393,173 @@ export default function ExtrasPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* VIDEO EDUKASI INTERAKTIF */}
+        {activeTab === 'videos' && (
+          <div className="flex-1 flex flex-col">
+            <div className="flex items-center justify-between mb-5">
+              <button
+                type="button"
+                onClick={() => handleTabClick(null)}
+                className="text-xs sm:text-sm font-bold text-[#1E5FA8] flex items-center gap-1.5 hover:underline cursor-pointer"
+              >
+                <ArrowLeft size={16} />
+                Kembali ke Fitur Lainnya
+              </button>
+              <span className="text-sm sm:text-base font-extrabold text-[#163A5F]">
+                🎬 Video Edukasi Sosial
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {(extrasData.videos || []).map((vid) => (
+                <div
+                  key={vid.id}
+                  className="bg-white border border-[#C5DDF6] rounded-3xl overflow-hidden shadow-2xs hover:shadow-md transition flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Video Header Thumbnail Banner */}
+                    <div
+                      onClick={() => setSelectedVideo(vid)}
+                      className="relative h-44 sm:h-48 bg-gradient-to-tr from-[#163A5F] via-[#1E5FA8] to-[#3B82F6] flex flex-col items-center justify-center text-white cursor-pointer group"
+                    >
+                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-xs group-hover:bg-white/30 border border-white/40 flex items-center justify-center transform group-hover:scale-110 transition shadow-lg">
+                        <Play size={24} className="text-white fill-white ml-1" />
+                      </div>
+                      <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-xs text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <Clock size={12} />
+                        <span>{vid.duration}</span>
+                      </div>
+                      <div className="absolute bottom-3 left-4 text-xs font-semibold text-white/90">
+                        {vid.category}
+                      </div>
+                    </div>
+
+                    <div className="p-5 sm:p-6 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="bg-[#E6F1FC] text-[#1E5FA8] text-xs font-bold px-3 py-0.5 rounded-full">
+                          {vid.category}
+                        </span>
+                        <span className="text-xs text-[#6B8BA4] flex items-center gap-1">
+                          <Tv size={13} />
+                          <span>Video Bimbingan</span>
+                        </span>
+                      </div>
+                      <h3 className="font-extrabold text-base sm:text-lg text-[#163A5F] leading-snug">
+                        {vid.title}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#4A6382] leading-relaxed line-clamp-2">
+                        {vid.description}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="px-5 sm:px-6 pb-5 sm:pb-6">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVideo(vid)}
+                      className="w-full bg-[#EBF4FD] hover:bg-[#1E5FA8] text-[#1E5FA8] hover:text-white font-extrabold text-xs sm:text-sm py-2.5 rounded-full transition flex items-center justify-center gap-2 cursor-pointer border border-[#C5DDF6]"
+                    >
+                      <Play size={14} className="fill-current" />
+                      <span>Tonton Video & Simak Poin Penting</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Video Modal Player */}
+            {selectedVideo && (
+              <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-[#C5DDF6]">
+                  <div className="p-4 sm:p-5 border-b border-[#E3EFFC] flex items-center justify-between sticky top-0 bg-white/95 backdrop-blur-xs z-10">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-[#E6F1FC] text-[#1E5FA8] text-xs font-bold px-3 py-1 rounded-full">
+                        {selectedVideo.category}
+                      </span>
+                      <span className="text-xs text-[#4A6382] flex items-center gap-1">
+                        <Clock size={12} />
+                        {selectedVideo.duration}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedVideo(null)}
+                      className="p-1.5 rounded-full hover:bg-slate-100 text-[#4A6382] hover:text-slate-900 transition cursor-pointer"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="relative w-full pb-[56.25%] bg-black">
+                    <iframe
+                      src={`https://www.youtube-nocookie.com/embed/${selectedVideo.youtubeId}?autoplay=1&rel=0`}
+                      title={selectedVideo.title}
+                      className="absolute inset-0 w-full h-full"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h3 className="font-extrabold text-lg sm:text-xl text-[#163A5F]">
+                        {selectedVideo.title}
+                      </h3>
+                      <p className="text-xs sm:text-sm text-[#4A6382] mt-1.5 leading-relaxed">
+                        {selectedVideo.description}
+                      </p>
+                    </div>
+
+                    <div className="bg-[#F0F7FF] border border-[#C5DDF6] rounded-2xl p-4 sm:p-5 space-y-3">
+                      <div className="flex items-center gap-2 font-bold text-xs sm:text-sm text-[#163A5F]">
+                        <Sparkles size={16} className="text-[#1E5FA8]" />
+                        <span>Poin Penting Video Bimbingan:</span>
+                      </div>
+                      <ul className="space-y-2">
+                        {(selectedVideo.keyTakeaways || []).map((pt, pIdx) => (
+                          <li
+                            key={pIdx}
+                            className="flex items-start gap-2.5 text-xs sm:text-sm text-[#23456D]"
+                          >
+                            <span className="w-4 h-4 rounded-full bg-[#1E5FA8] text-white flex items-center justify-center shrink-0 mt-0.5 text-[10px] font-bold">
+                              ✓
+                            </span>
+                            <span>{pt}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedVideo(null);
+                          if (userSessions.length > 0) {
+                            navigate(`/chat/${userSessions[0].id}`);
+                          } else {
+                            navigate('/topics');
+                          }
+                        }}
+                        className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-bold text-xs sm:text-sm px-5 py-2.5 rounded-full transition cursor-pointer"
+                      >
+                        Bahas Topik Ini di Chat AI →
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedVideo(null)}
+                        className="text-xs sm:text-sm font-semibold text-[#4A6382] hover:text-[#163A5F] cursor-pointer"
+                      >
+                        Tutup
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

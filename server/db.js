@@ -95,6 +95,37 @@ CREATE TABLE IF NOT EXISTS emergency_alerts (
     status VARCHAR(30) DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS content_tips (
+    id VARCHAR(80) PRIMARY KEY,
+    category VARCHAR(80) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    summary TEXT NOT NULL,
+    points_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS content_articles (
+    id VARCHAR(80) PRIMARY KEY,
+    category VARCHAR(80) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    read_time VARCHAR(50) DEFAULT '3 menit',
+    excerpt TEXT NOT NULL,
+    content_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS content_videos (
+    id VARCHAR(80) PRIMARY KEY,
+    category VARCHAR(80) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    duration VARCHAR(50) DEFAULT '5:00',
+    description TEXT NOT NULL,
+    youtube_id VARCHAR(100) NOT NULL,
+    embed_url TEXT NOT NULL,
+    key_takeaways_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 `;
 
 const MIGRATION_COLUMNS = [
@@ -131,7 +162,6 @@ async function initDatabase() {
     pgPool = pool;
     activeEngine = 'postgresql';
     console.log('[DB] Connected to PostgreSQL database (sociacare).');
-    return;
   } catch (err) {
     const dbPath = path.join(__dirname, 'sociacare.sql.db');
     sqliteDb = new DatabaseSync(dbPath);
@@ -147,6 +177,71 @@ async function initDatabase() {
     }
     activeEngine = 'sql-sqlite';
     console.log(`[DB] Using local SQL engine (sociacare.sql.db) — PostgreSQL fallback active.`);
+  }
+
+  await seedInitialContentIfEmpty();
+}
+
+async function seedInitialContentIfEmpty() {
+  try {
+    const { SOCIAL_TIPS, ARTICLES, EDUCATIONAL_VIDEOS } = require('./counselorData');
+
+    // 1. Tips
+    const tipsCountRes = await query(`SELECT COUNT(*) as count FROM content_tips`);
+    const tipsCount = Number(tipsCountRes.rows[0]?.count || 0);
+    if (tipsCount === 0) {
+      for (const tip of SOCIAL_TIPS) {
+        await query(
+          `INSERT INTO content_tips (id, category, title, summary, points_json) VALUES ($1, $2, $3, $4, $5)`,
+          [tip.id, tip.category, tip.title, tip.summary, JSON.stringify(tip.points || [])]
+        );
+      }
+      console.log(`[DB Seed] Seeded ${SOCIAL_TIPS.length} initial tips.`);
+    }
+
+    // 2. Articles
+    const artCountRes = await query(`SELECT COUNT(*) as count FROM content_articles`);
+    const artCount = Number(artCountRes.rows[0]?.count || 0);
+    if (artCount === 0) {
+      for (const art of ARTICLES) {
+        await query(
+          `INSERT INTO content_articles (id, category, title, read_time, excerpt, content_json) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [
+            art.id,
+            art.category,
+            art.title,
+            art.readTime || '3 menit',
+            art.excerpt,
+            JSON.stringify(art.content || []),
+          ]
+        );
+      }
+      console.log(`[DB Seed] Seeded ${ARTICLES.length} initial articles.`);
+    }
+
+    // 3. Videos
+    const vidCountRes = await query(`SELECT COUNT(*) as count FROM content_videos`);
+    const vidCount = Number(vidCountRes.rows[0]?.count || 0);
+    if (vidCount === 0) {
+      for (const vid of EDUCATIONAL_VIDEOS) {
+        await query(
+          `INSERT INTO content_videos (id, category, title, duration, description, youtube_id, embed_url, key_takeaways_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
+            vid.id,
+            vid.category,
+            vid.title,
+            vid.duration || '5:00',
+            vid.description,
+            vid.youtubeId,
+            vid.embedUrl || `https://www.youtube-nocookie.com/embed/${vid.youtubeId}`,
+            JSON.stringify(vid.keyTakeaways || []),
+          ]
+        );
+      }
+      console.log(`[DB Seed] Seeded ${EDUCATIONAL_VIDEOS.length} initial videos.`);
+    }
+  } catch (err) {
+    console.error('[DB Seed Error]', err.message);
   }
 }
 

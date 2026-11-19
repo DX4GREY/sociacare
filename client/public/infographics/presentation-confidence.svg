@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FAF5FF" />
+      <stop offset="100%" stop-color="#EDE9FE" />
+    </linearGradient>
+    <linearGradient id="cardGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6D28D9" />
+      <stop offset="100%" stop-color="#4C1D95" />
+    </linearGradient>
+    <filter id="shadow2" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#6D28D9" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <rect width="800" height="500" rx="28" fill="url(#bgGrad2)" />
+  <rect x="12" y="12" width="776" height="476" rx="22" fill="none" stroke="#DDD6FE" stroke-width="2" stroke-dasharray="8 6" />
+
+  <rect x="40" y="32" width="720" height="76" rx="18" fill="url(#cardGrad2)" filter="url(#shadow2)" />
+  <text x="70" y="66" fill="#DDD6FE" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="bold" letter-spacing="2">INFOGRAFIS KEPERCAYAAN DIRI</text>
+  <text x="70" y="92" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800">4 Kunci Percaya Diri Saat Tampil &amp; Presentasi</text>
+  <rect x="620" y="48" width="120" height="42" rx="12" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" />
+  <text x="680" y="74" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" text-anchor="middle">✨ Anti Gugup</text>
+
+  <!-- Step 1 -->
+  <g transform="translate(40, 130)" filter="url(#shadow2)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#E9D5FF" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#F3E8FF" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">🧠</text>
+    <rect x="20" y="95" width="34" height="20" rx="6" fill="#7C3AED" />
+    <text x="37" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">01</text>
+    <text x="20" y="136" fill="#3B0764" font-family="system-ui, sans-serif" font-size="14" font-weight="800">Pahami Konsep</text>
+    <text x="20" y="154" fill="#7E22CE" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Bukan Menghafal</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#F3E8FF" stroke-width="2" />
+    <text x="20" y="196" fill="#4C1D95" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Kuasai 3 ide pokok.</tspan>
+      <tspan x="20" dy="16">Jika lupa kata persis,</tspan>
+      <tspan x="20" dy="16">kamu tetap bisa</tspan>
+      <tspan x="20" dy="16">menjelaskannya.</tspan>
+    </text>
+  </g>
+
+  <!-- Step 2 -->
+  <g transform="translate(224, 130)" filter="url(#shadow2)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#E9D5FF" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#F3E8FF" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">🌬️</text>
+    <rect x="20" y="95" width="34" height="20" rx="6" fill="#7C3AED" />
+    <text x="37" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">02</text>
+    <text x="20" y="136" fill="#3B0764" font-family="system-ui, sans-serif" font-size="14" font-weight="800">Napas 4-4-4</text>
+    <text x="20" y="154" fill="#7E22CE" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Turunkan Adrenalin</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#F3E8FF" stroke-width="2" />
+    <text x="20" y="196" fill="#4C1D95" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Tarik napas 4 detik,</tspan>
+      <tspan x="20" dy="16">tahan 4 detik, lalu</tspan>
+      <tspan x="20" dy="16">hembuskan 4 detik</tspan>
+      <tspan x="20" dy="16">sebelum bicara.</tspan>
+    </text>
+  </g>
+
+  <!-- Step 3 -->
+  <g transform="translate(408, 130)" filter="url(#shadow2)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#E9D5FF" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#F3E8FF" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">👀</text>
+    <rect x="20" y="95" width="34" height="20" rx="6" fill="#7C3AED" />
+    <text x="37" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">03</text>
+    <text x="20" y="136" fill="#3B0764" font-family="system-ui, sans-serif" font-size="14" font-weight="800">Tatap Kening</text>
+    <text x="20" y="154" fill="#7E22CE" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Bukan Mata Langsung</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#F3E8FF" stroke-width="2" />
+    <text x="20" y="196" fill="#4C1D95" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Tatap bagian tengah</tspan>
+      <tspan x="20" dy="16">kening teman atau</tspan>
+      <tspan x="20" dy="16">dinding belakang agar</tspan>
+      <tspan x="20" dy="16">tidak gugup.</tspan>
+    </text>
+  </g>
+
+  <!-- Step 4 -->
+  <g transform="translate(592, 130)" filter="url(#shadow2)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#E9D5FF" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#F3E8FF" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">🙌</text>
+    <rect x="20" y="95" width="34" height="20" rx="6" fill="#7C3AED" />
+    <text x="37" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">04</text>
+    <text x="20" y="136" fill="#3B0764" font-family="system-ui, sans-serif" font-size="14" font-weight="800">Postur Terbuka</text>
+    <text x="20" y="154" fill="#7E22CE" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Bahu Tegak Rileks</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#F3E8FF" stroke-width="2" />
+    <text x="20" y="196" fill="#4C1D95" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Berdiri tegak, buka</tspan>
+      <tspan x="20" dy="16">telapak tangan alami.</tspan>
+      <tspan x="20" dy="16">Tubuh tegak memberi</tspan>
+      <tspan x="20" dy="16">sinyal percaya diri.</tspan>
+    </text>
+  </g>
+
+  <text x="400" y="472" fill="#6B21A8" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">💡 Gugup itu wajar dan manusiawi. Keberanian dimulai saat kamu tetap maju meski merasa ragu.</text>
+</svg>

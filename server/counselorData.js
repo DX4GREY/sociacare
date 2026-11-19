@@ -44,10 +44,10 @@ const TOPICS = [
   },
   {
     id: 'communication',
-    title: 'Komunikasi Efektif',
-    shortTitle: 'Komunikasi',
+    title: 'Komunikasi Asertif & Efektif',
+    shortTitle: 'Komunikasi Asertif',
     screenNumber: 6,
-    description: 'Kesulitan menyampaikan pendapat, takut salah bicara, atau sering terjadi salah paham dengan teman.',
+    description: 'Kesulitan menyampaikan pendapat secara asertif, takut salah bicara, atau sering terjadi salah paham dengan teman.',
     greeting:
       'Terima kasih sudah memilih topik ini. Boleh ceritakan lebih detail, apa yang sedang kamu alami?',
     exampleUserFirst:
@@ -57,28 +57,28 @@ const TOPICS = [
     generalSolution: {
       intro: 'Aku paham perasaanmu. Berikut beberapa hal yang bisa kamu lakukan:',
       checklist: [
-        'Sampaikan perasaanmu secara baik-baik.',
+        'Sampaikan perasaanmu secara asertif dan baik-baik.',
         'Coba bangun komunikasi yang lebih terbuka.',
         'Cari teman yang saling mendukung.',
         'Jika berlanjut, jangan ragu untuk cerita ke guru BK.',
       ],
       footer: 'Menurut kamu, langkah mana yang paling sesuai?',
       quickReplies: [
-        'Coba komunikasi lebih terbuka',
+        'Coba komunikasi lebih asertif',
         'Berlatih bicara pelan-pelan',
         'Minta contoh kalimat sopan',
       ],
     },
     topicSpecificSolution: {
-      intro: 'Komunikasi yang baik bisa dimulai dari hal sederhana, misalnya:',
+      intro: 'Komunikasi asertif dan efektif bisa dimulai dari hal sederhana, misalnya:',
       checklist: [
-        'Gunakan bahasa yang jelas dan sopan.',
+        'Gunakan bahasa yang jelas, jujur, dan sopan.',
         'Dengarkan lawan bicara hingga selesai.',
         'Hindari memotong pembicaraan.',
       ],
       tipBox: {
         title: 'Tips Tambahan:',
-        text: 'Gunakan kalimat "Aku merasa..." daripada menyalahkan lawan bicara agar temanmu lebih mudah menerima.',
+        text: 'Gunakan kalimat asertif "Aku merasa..." daripada menyalahkan lawan bicara agar temanmu lebih mudah menerima.',
       },
       footer: 'Kalau kamu mau, aku juga bisa kasih contoh kalimatnya!',
       quickReplies: ['Beri contoh kalimatnya', 'Masih ada', 'Tidak, cukup'],
@@ -283,9 +283,131 @@ const ARTICLES = [
   },
 ];
 
+const EDUCATIONAL_INFOGRAPHICS = {
+  friendship: {
+    id: 'healthy-friendship',
+    title: 'Ciri Pertemanan Sehat (Green Flag) vs Toksik (Red Flag)',
+    category: 'Hubungan Pertemanan',
+    caption: 'Perbandingan visual untuk membantumu mengevaluasi lingkaran pertemanan',
+    url: '/infographics/healthy-friendship.svg',
+    downloadName: 'infografis-pertemanan-sehat.svg',
+    summaryPoints: [
+      'Pertemanan sehat saling merayakan kesuksesan satu sama lain.',
+      'Teman yang baik menghargai batasan dan privasimu.',
+      'Waspadai teman yang hanya datang saat ada maunya atau suka meremehkan.',
+    ],
+  },
+  communication: {
+    id: 'assertive-communication',
+    title: "Formula Komunikasi Asertif 'I-Statement'",
+    category: 'Komunikasi Asertif',
+    caption: 'Panduan visual 3 langkah menyampaikan perasaan tanpa menyakiti teman',
+    url: '/infographics/assertive-communication.svg',
+    downloadName: 'infografis-komunikasi-asertif.svg',
+    summaryPoints: [
+      'Langkah 1: Sebutkan fakta objektif tanpa menuduh.',
+      'Langkah 2: Ungkapkan emosi dengan awalan "Aku merasa...".',
+      'Langkah 3: Tawarkan kerja sama atau solusi secara ramah.',
+    ],
+  },
+  confidence: {
+    id: 'presentation-confidence',
+    title: '4 Kunci Percaya Diri Saat Tampil & Presentasi',
+    category: 'Kepercayaan Diri',
+    caption: 'Trik praktis mengatasi demam panggung dan rasa gugup di depan kelas',
+    url: '/infographics/presentation-confidence.svg',
+    downloadName: 'infografis-percaya-diri-presentasi.svg',
+    summaryPoints: [
+      'Pahami konsep inti materi, jangan menghafal kata per kata.',
+      'Latihan teknik pernapasan 4-4-4 untuk meredakan denyut jantung.',
+      'Tatap kening atau dinding belakang kelas jika merasa cemas.',
+      'Gunakan postur tubuh tegak dan tangan terbuka.',
+    ],
+  },
+  bullying: {
+    id: 'stop-bullying',
+    title: 'Alur Tanggap 4T: Hadapi & Laporkan Bullying',
+    category: 'Mencegah Bullying',
+    caption: 'Panduan visual perlindungan diri bagi korban maupun saksi perundungan',
+    url: '/infographics/stop-bullying.svg',
+    downloadName: 'infografis-stop-bullying.svg',
+    summaryPoints: [
+      'Tolak: Nyatakan ketidaksukaanmu secara tegas dan tenang.',
+      'Tinggalkan: Menjauh dari lokasi menuju tempat ramai.',
+      'Tetap Tenang: Catat waktu, saksi, dan simpan bukti kejadian.',
+      'Temui Guru BK: Laporkan segera untuk mendapatkan perlindungan aman.',
+    ],
+  },
+};
+
+const EDUCATIONAL_VIDEOS = [
+  {
+    id: 'vid-1',
+    category: 'Hubungan Pertemanan',
+    duration: '4:20',
+    title: 'Mengenal Pertemanan Sehat vs Toxic Friendship di Sekolah',
+    description:
+      'Video animasi edukatif yang menjelaskan perbedaan nyata antara sahabat yang saling mendukung dengan lingkaran pertemanan yang membuatmu lelah secara emosional.',
+    youtubeId: 'O_aPz0H6vEw',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/O_aPz0H6vEw',
+    keyTakeaways: [
+      'Pertemanan yang sehat selalu menghargai batasan pribadimu.',
+      'Teman sejati mau mendengarkan saat kamu bercerita tanpa menghakimi.',
+      'Jangan ragu menjaga jarak jika hubungan pertemanan mulai merugikan kesehatan mentalmu.',
+    ],
+  },
+  {
+    id: 'vid-2',
+    category: 'Komunikasi Asertif',
+    duration: '5:10',
+    title: 'Latihan Komunikasi Asertif: Berani Berkata "Tidak" dengan Sopan',
+    description:
+      'Pelajari teknik komunikasi asertif dengan metode I-Message agar kamu dapat menyampaikan pendapat dan menolak ajakan yang tidak nyaman tanpa menyakiti perasaan teman.',
+    youtubeId: 'vlXZ_168Tvg',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/vlXZ_168Tvg',
+    keyTakeaways: [
+      'Asertif berarti jujur pada perasaan diri sendiri sambil tetap menghormati orang lain.',
+      'Gunakan formula "Aku merasa... saat... karena..." daripada menyalahkan lawan bicara.',
+      'Jaga kontak mata yang ramah dan intonasi suara yang tenang saat berbicara.',
+    ],
+  },
+  {
+    id: 'vid-3',
+    category: 'Kepercayaan Diri',
+    duration: '4:45',
+    title: 'Cara Mengatasi Minder & Gugup Saat Bicara / Presentasi di Kelas',
+    description:
+      'Tips praktis mengendalikan detak jantung, mengatasi rasa takut salah, dan membangun rasa percaya diri di hadapan teman-teman sekelas.',
+    youtubeId: 'w-HYZv6HzAs',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/w-HYZv6HzAs',
+    keyTakeaways: [
+      'Lakukan teknik pernapasan dalam (tarik 4 detik, tahan 4 detik, buang 4 detik) sebelum maju.',
+      'Fokuslah pada materi yang ingin kamu bagikan, bukan pada ketakutan dinilai orang lain.',
+      'Ingatlah bahwa setiap temanmu juga sedang belajar dan wajar jika merasa gugup.',
+    ],
+  },
+  {
+    id: 'vid-4',
+    category: 'Mencegah Bullying',
+    duration: '5:50',
+    title: 'Stop Bullying! Menjadi "Upstander" untuk Membela Teman',
+    description:
+      'Mengapa diam saat melihat perundungan bisa berbahaya, dan bagaimana langkah aman menjadi pembela (upstander) serta cara tepat melapor ke Guru BK.',
+    youtubeId: 'ynTuA_St4wg',
+    embedUrl: 'https://www.youtube-nocookie.com/embed/ynTuA_St4wg',
+    keyTakeaways: [
+      'Bullying bukan sekadar fisik, tetapi juga pengucilan sosial dan ejekan siber.',
+      'Mendampingi korban dan tidak ikut menertawakan adalah bentuk dukungan yang sangat besar.',
+      'Menceritakan perundungan kepada Guru BK adalah tindakan berani untuk melindungi sesama.',
+    ],
+  },
+];
+
 module.exports = {
   TOPICS,
   REFLECTION_CLOSING,
   SOCIAL_TIPS,
   ARTICLES,
+  EDUCATIONAL_VIDEOS,
+  EDUCATIONAL_INFOGRAPHICS,
 };

@@ -214,3 +214,13 @@ export function ExtraHistoryIcon({ size = 38 }) {
     </svg>
   );
 }
+
+export function ExtraVideoIcon({ size = 38 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="24" cy="24" r="20" fill="#FEE2E2" />
+      <rect x="12" y="14" width="24" height="20" rx="5" fill="#EF4444" />
+      <path d="M21 19L29 24L21 29V19Z" fill="white" />
+    </svg>
+  );
+}

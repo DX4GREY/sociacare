@@ -17,7 +17,47 @@ import {
   PhoneCall,
   Clock,
   ArrowLeft,
+  ZoomIn,
+  Image as ImageIcon,
+  Download,
+  X,
 } from 'lucide-react';
+
+function formatChatMessageText(text) {
+  if (!text) return null;
+  const lines = String(text).split('\n');
+  return lines.map((line, lIdx) => {
+    // Process markdown bold (**...**) and italic (*...*)
+    const parts = line.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+    const formattedLine = parts.map((part, pIdx) => {
+      if (part.startsWith('**') && part.endsWith('**') && part.length >= 4) {
+        return (
+          <strong key={pIdx} className="font-extrabold text-[#112F4E]">
+            {part.slice(2, -2)}
+          </strong>
+        );
+      }
+      if (part.startsWith('*') && part.endsWith('*') && part.length >= 2) {
+        return (
+          <em key={pIdx} className="italic">
+            {part.slice(1, -1)}
+          </em>
+        );
+      }
+      return part;
+    });
+
+    if (line.trim() === '') {
+      return <div key={lIdx} className="h-1.5" />;
+    }
+
+    return (
+      <span key={lIdx} className="block leading-relaxed">
+        {formattedLine}
+      </span>
+    );
+  });
+}
 
 export default function ChatPage() {
   const { sessionId } = useParams();
@@ -41,6 +81,7 @@ export default function ChatPage() {
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [reopenedClosedChat, setReopenedClosedChat] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const messagesContainerRef = useRef(null);
   const loadedSessionIdRef = useRef(null);
@@ -288,6 +329,7 @@ export default function ChatPage() {
       }
     } catch (err) {
       console.error('Failed to send message:', err);
+      let recovered = false;
       // Sinkronkan ulang data pesan dari database jika request sempat terputus di jaringan
       if (currentSession?.id) {
         try {
@@ -304,10 +346,41 @@ export default function ChatPage() {
           if (syncData.messages && syncData.messages.length > 0) {
             setMessages(syncData.messages);
             if (syncData.session) setCurrentSession(syncData.session);
+            // Cek apakah pesan balasan AI terakhir sudah masuk di database
+            const lastMsg = syncData.messages[syncData.messages.length - 1];
+            if (lastMsg && lastMsg.sender === 'ai') {
+              recovered = true;
+            }
           }
         } catch (syncErr) {
           console.warn('Sync fallback error:', syncErr);
         }
+      }
+
+      // Jika belum ada balasan AI karena server/jaringan terputus, berikan balasan ramah otomatis
+      if (!recovered) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: 'ai',
+            content: `Maaf ya ${currentUser?.name || 'Teman'}, sepertinya koneksi jaringan kita sempat terputus sejenak saat aku ingin membalas ceritamu. Tapi tenang, aku selalu siap mendengarkan dan mendukungmu! Boleh klik tombol di bawah untuk mengirim ulang pesanmu ya.`,
+            structured: {
+              checklist: [
+                'Periksa apakah koneksi internetmu stabil.',
+                'Klik tombol kirim ulang di bawah untuk mencoba kembali.'
+              ],
+              tipBox: {
+                title: 'Info Koneksi:',
+                text: 'Semua ceritamu tetap aman tersimpan. Jangan ragu untuk klik tombol kirim ulang di bawah ini.'
+              },
+              footerText: 'Mau mencoba kirim ulang pesan ini?',
+              quickReplies: [textToSend, 'Hubungi Guru BK', 'Tutup Pembicaraan'],
+              isClosing: false,
+              isEmergency: false,
+            },
+          },
+        ]);
       }
     } finally {
       setSendingMessage(false);
@@ -859,7 +932,10 @@ export default function ChatPage() {
                           : 'bg-[#1E5FA8] text-white font-medium'
                       }`}
                     >
-                      <p className="whitespace-pre-line">{msg.content}</p>
+                      {/* Message Content (Dynamic formatting / Markdown support) */}
+                      <div className="space-y-1 text-xs sm:text-sm md:text-base leading-relaxed">
+                        {formatChatMessageText(msg.content)}
+                      </div>
                     </div>
                     <StudentAvatar
                       style={currentUser?.avatar_style || 'student-female'}
@@ -909,7 +985,10 @@ export default function ChatPage() {
                         </div>
                       )}
 
-                      <p className="whitespace-pre-line">{msg.content}</p>
+                      {/* Message Content (Dynamic formatting / Markdown support) */}
+                      <div className="space-y-1 text-xs sm:text-sm md:text-base leading-relaxed">
+                        {formatChatMessageText(msg.content)}
+                      </div>
 
                       {/* Checkmark Solution Items */}
                       {Array.isArray(struct.checklist) &&
@@ -972,6 +1051,77 @@ export default function ChatPage() {
                             >
                               {struct.tipBox.text}
                             </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Infographic Visual Card inside Message Bubble */}
+                      {struct.infographic && struct.infographic.url && (
+                        <div className="rounded-2xl border-2 border-[#BBD7F6] overflow-hidden bg-gradient-to-b from-[#F0F7FF] to-white shadow-xs space-y-3">
+                          <div className="p-3 sm:p-3.5 pb-2 flex items-center justify-between border-b border-[#D8E8F8]">
+                            <div className="flex items-center gap-2">
+                              <span className="p-1 rounded-lg bg-[#1E5FA8] text-white">
+                                <ImageIcon size={14} />
+                              </span>
+                              <span className="text-xs font-extrabold text-[#163A5F]">
+                                Infografis Edukasi Visual
+                              </span>
+                            </div>
+                            <span className="text-[10px] sm:text-[11px] font-bold bg-[#DCEBFA] text-[#1E5FA8] px-2.5 py-0.5 rounded-full">
+                              {struct.infographic.category || 'Panduan Bimbingan'}
+                            </span>
+                          </div>
+
+                          <div className="px-3 sm:px-3.5">
+                            <div className="font-extrabold text-xs sm:text-sm text-[#163A5F]">
+                              {struct.infographic.title}
+                            </div>
+                            {struct.infographic.caption && (
+                              <p className="text-[11px] sm:text-xs text-[#4A6382] mt-0.5">
+                                {struct.infographic.caption}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Clickable Image Preview */}
+                          <div
+                            onClick={() => setPreviewImage(struct.infographic)}
+                            className="relative group cursor-pointer mx-3 sm:mx-3.5 rounded-xl overflow-hidden border border-[#C5DDF6] bg-white shadow-2xs"
+                          >
+                            <img
+                              src={struct.infographic.url}
+                              alt={struct.infographic.title}
+                              className="w-full max-h-56 object-cover object-top transition duration-300 group-hover:scale-102"
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-[#163A5F]/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center backdrop-blur-[2px]">
+                              <div className="bg-white/95 text-[#163A5F] text-xs font-extrabold px-3.5 py-1.5 rounded-full shadow-md flex items-center gap-1.5">
+                                <ZoomIn size={14} />
+                                <span>Klik untuk Perbesar</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="px-3 sm:px-3.5 pb-3 sm:pb-3.5 flex items-center justify-between text-xs font-semibold pt-1">
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImage(struct.infographic)}
+                              className="text-[#1E5FA8] hover:underline flex items-center gap-1 font-bold cursor-pointer"
+                            >
+                              <ZoomIn size={13} />
+                              <span>Tampilan Penuh</span>
+                            </button>
+                            <a
+                              href={struct.infographic.url}
+                              download={struct.infographic.downloadName || 'infografis-sociacare.svg'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-[#4A6382] hover:text-[#163A5F] flex items-center gap-1 cursor-pointer"
+                              title="Buka / Simpan File Gambar"
+                            >
+                              <Download size={13} />
+                              <span>Simpan Gambar</span>
+                            </a>
                           </div>
                         </div>
                       )}
@@ -1122,6 +1272,59 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* Fullscreen Infographic Zoom Modal */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-[#E3EFFC] flex items-center justify-between bg-white shrink-0">
+              <div>
+                <span className="text-xs font-bold text-[#1E5FA8] bg-[#E8F2FC] px-2.5 py-0.5 rounded-full">
+                  {previewImage.category}
+                </span>
+                <h3 className="font-extrabold text-sm sm:text-base text-[#163A5F] mt-1">
+                  {previewImage.title}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="p-1.5 rounded-full hover:bg-slate-100 text-[#4A6382] hover:text-slate-900 cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4 bg-slate-50 flex items-center justify-center">
+              <img
+                src={previewImage.url}
+                alt={previewImage.title}
+                className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-md border border-[#CFE3F8]"
+              />
+            </div>
+            <div className="p-3.5 border-t border-[#E3EFFC] flex flex-col sm:flex-row items-center justify-between gap-2 bg-white text-xs shrink-0">
+              <span className="text-[#4A6382] text-center sm:text-left">
+                {previewImage.caption}
+              </span>
+              <a
+                href={previewImage.url}
+                download={previewImage.downloadName || 'infografis-sociacare.svg'}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+              >
+                <Download size={14} />
+                <span>Unduh Gambar (SVG)</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

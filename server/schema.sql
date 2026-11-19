@@ -97,3 +97,34 @@ CREATE TABLE IF NOT EXISTS emergency_alerts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS content_tips (
+    id VARCHAR(80) PRIMARY KEY,
+    category VARCHAR(80) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    summary TEXT NOT NULL,
+    points_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS content_articles (
+    id VARCHAR(80) PRIMARY KEY,
+    category VARCHAR(80) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    read_time VARCHAR(50) DEFAULT '3 menit',
+    excerpt TEXT NOT NULL,
+    content_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS content_videos (
+    id VARCHAR(80) PRIMARY KEY,
+    category VARCHAR(80) NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    duration VARCHAR(50) DEFAULT '5:00',
+    description TEXT NOT NULL,
+    youtube_id VARCHAR(100) NOT NULL,
+    embed_url TEXT NOT NULL,
+    key_takeaways_json TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

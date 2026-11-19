@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const { initDatabase, query, getEngineInfo } = require('./db');
-const { TOPICS, SOCIAL_TIPS, ARTICLES } = require('./counselorData');
+const { TOPICS, SOCIAL_TIPS, ARTICLES, EDUCATIONAL_VIDEOS } = require('./counselorData');
 const {
   generateCounselorResponse,
   DEFAULT_SYSTEM_PERSONA,
@@ -511,14 +511,49 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
       [sessionId, session.user_id, content]
     );
 
-    const aiReply = await generateCounselorResponse({
-      topicId: session.topic_id,
-      userName: user.name,
-      userMessage: content,
-      conversationHistory: historyRes.rows,
-      currentStage: Number(session.stage || 3),
-      customSystemPersona: aiSettings.systemPersona,
-    });
+    let aiReply;
+    try {
+      aiReply = await generateCounselorResponse({
+        topicId: session.topic_id,
+        userName: user.name,
+        userMessage: content,
+        conversationHistory: historyRes.rows,
+        currentStage: Number(session.stage || 3),
+        customSystemPersona: aiSettings.systemPersona,
+      });
+    } catch (aiErr) {
+      console.error('[AI Generation Fallback Triggered]', aiErr.message);
+      aiReply = {
+        content: `Halo ${user.name || 'Teman'}, terima kasih sudah berbagi cerita dengan jujur. Aku selalu ada di sini untuk mendengarkan dan mendukungmu. Boleh ceritakan lebih banyak tentang apa yang sedang kamu rasakan saat ini?`,
+        structured: {
+          checklist: [
+            'Tarik napas perlahan dan tenangkan pikiran sejenak.',
+            'Fokus pada langkah kecil yang paling bisa kamu lakukan hari ini.',
+            'Jangan ragu untuk bercerita ke teman dekat atau Guru BK jika terasa berat.',
+          ],
+          tipBox: {
+            title: 'Tips Pendukung:',
+            text: 'Setiap proses butuh waktu, yang terpenting kamu tidak memendam masalah ini sendirian.',
+          },
+          footerText: 'Bagaimana perasaanmu sekarang? Mau lanjut bercerita atau menghubungi Guru BK?',
+          quickReplies: ['Ceritakan lebih detail', 'Hubungi Guru BK', 'Tutup Pembicaraan'],
+          isClosing: false,
+          isEmergency: false,
+          emergencyLevel: 'normal',
+          emergencyReason: '',
+          emergencyWarning: '',
+        },
+        nextStage: Number(session.stage || 3) === 3 ? 35 : Number(session.stage || 3),
+        usage: {
+          modelName: 'emergency-counselor-fallback',
+          promptTokens: 0,
+          completionTokens: 0,
+          thoughtTokens: 0,
+          totalTokens: 0,
+          latencyMs: 1,
+        },
+      };
+    }
 
     if (aiReply.usage) {
       await recordTokenUsage({
@@ -689,18 +724,56 @@ app.post('/api/users/:userId/counselor-requests', async (req, res) => {
 app.get('/api/content/extras', async (req, res) => {
   try {
     const userId = Number(req.query.userId || 0);
-    let savedTipIds = [];
-    if (userId > 0) {
-      const savedRes = await query(
-        `SELECT tip_id FROM user_saved_tips WHERE user_id = $1`,
-        [userId]
-      );
-      savedTipIds = savedRes.rows.map((r) => r.tip_id);
-    }
+    const [tipsRes, articlesRes, videosRes, savedRes] = await Promise.all([
+      query(`SELECT * FROM content_tips ORDER BY created_at ASC`),
+      query(`SELECT * FROM content_articles ORDER BY created_at ASC`),
+      query(`SELECT * FROM content_videos ORDER BY created_at ASC`),
+      userId > 0
+        ? query(`SELECT tip_id FROM user_saved_tips WHERE user_id = $1`, [userId])
+        : Promise.resolve({ rows: [] }),
+    ]);
+
+    const tips =
+      tipsRes.rows.length > 0
+        ? tipsRes.rows.map((t) => ({
+            id: t.id,
+            category: t.category,
+            title: t.title,
+            summary: t.summary || t.description || '',
+            points: parseStructured(t.points_json) || (t.summary ? [t.summary] : []),
+          }))
+        : SOCIAL_TIPS;
+    const articles =
+      articlesRes.rows.length > 0
+        ? articlesRes.rows.map((a) => ({
+            id: a.id,
+            category: a.category,
+            title: a.title,
+            readTime: a.read_time || '3 menit',
+            excerpt: a.excerpt,
+            content: parseStructured(a.content_json) || [a.excerpt],
+          }))
+        : ARTICLES;
+
+    const videos =
+      videosRes.rows.length > 0
+        ? videosRes.rows.map((v) => ({
+            id: v.id,
+            category: v.category,
+            title: v.title,
+            duration: v.duration || '5:00',
+            description: v.description,
+            youtubeId: v.youtube_id,
+            embedUrl: v.embed_url || `https://www.youtube-nocookie.com/embed/${v.youtube_id}`,
+            keyTakeaways: parseStructured(v.key_takeaways_json) || [],
+          }))
+        : EDUCATIONAL_VIDEOS;
+
     res.json({
-      tips: SOCIAL_TIPS,
-      articles: ARTICLES,
-      savedTipIds,
+      tips,
+      articles,
+      videos,
+      savedTipIds: savedRes.rows.map((r) => r.tip_id),
     });
   } catch (err) {
     res.status(500).json({ error: 'Gagal memuat konten tambahan.' });
@@ -1371,6 +1444,181 @@ app.post('/api/admin/sql', requireAdmin, async (req, res) => {
       durationMs: Date.now() - t0,
       error: err.message,
     });
+  }
+});
+
+// ============================================================================
+// ADMIN CONTENT MANAGEMENT (TIPS, ARTIKEL, VIDEO)
+// ============================================================================
+
+function extractYoutubeId(input) {
+  if (!input) return '';
+  const str = String(input).trim();
+  const match = str.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
+  );
+  if (match && match[1]) return match[1];
+  if (/^[\w-]{11}$/.test(str)) return str;
+  return str;
+}
+
+// 1. TIPS
+app.post('/api/admin/content/tips', requireAdmin, async (req, res) => {
+  try {
+    const category = String(req.body?.category || 'Umum').trim().slice(0, 80);
+    const title = String(req.body?.title || '').trim().slice(0, 200);
+    const summary = String(req.body?.summary || req.body?.description || '').trim();
+    let points = [];
+    if (Array.isArray(req.body?.points)) {
+      points = req.body.points.map((p) => String(p).trim()).filter(Boolean);
+    } else if (typeof req.body?.points === 'string') {
+      points = req.body.points
+        .split('\n')
+        .map((p) => p.replace(/^[•\-\*]\s*/, '').trim())
+        .filter(Boolean);
+    } else if (typeof req.body?.description === 'string') {
+      points = req.body.description
+        .split('\n')
+        .map((p) => p.replace(/^[•\-\*]\s*/, '').trim())
+        .filter(Boolean);
+    }
+
+    if (!title || !summary) {
+      return res.status(400).json({ error: 'Judul dan ringkasan/deskripsi tips wajib diisi.' });
+    }
+
+    if (points.length === 0) {
+      points = [summary];
+    }
+
+    const tipId = `tip-custom-${Date.now()}`;
+    await query(
+      `INSERT INTO content_tips (id, category, title, summary, points_json) VALUES ($1, $2, $3, $4, $5)`,
+      [tipId, category, title, summary, JSON.stringify(points)]
+    );
+
+    addServerLog('ADMIN', `Admin menambahkan tips baru: "${title}" (${category})`);
+    res.status(201).json({ ok: true, id: tipId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/content/tips/:id', requireAdmin, async (req, res) => {
+  try {
+    const tipId = String(req.params.id);
+    await query(`DELETE FROM content_tips WHERE id = $1`, [tipId]);
+    addServerLog('ADMIN', `Admin menghapus tips ID: ${tipId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 2. ARTICLES
+app.post('/api/admin/content/articles', requireAdmin, async (req, res) => {
+  try {
+    const category = String(req.body?.category || 'Umum').trim().slice(0, 80);
+    const title = String(req.body?.title || '').trim().slice(0, 200);
+    const readTime = String(req.body?.readTime || '3 menit').trim().slice(0, 50);
+    const excerpt = String(req.body?.excerpt || '').trim();
+    let contentArray = [];
+
+    if (Array.isArray(req.body?.content)) {
+      contentArray = req.body.content.map((p) => String(p).trim()).filter(Boolean);
+    } else if (typeof req.body?.content === 'string') {
+      contentArray = req.body.content
+        .split('\n\n')
+        .map((p) => p.trim())
+        .filter(Boolean);
+    }
+
+    if (!title || contentArray.length === 0) {
+      return res.status(400).json({ error: 'Judul dan isi artikel wajib diisi.' });
+    }
+
+    const finalExcerpt = excerpt || contentArray[0]?.slice(0, 160) + '...';
+    const artId = `art-custom-${Date.now()}`;
+
+    await query(
+      `INSERT INTO content_articles (id, category, title, read_time, excerpt, content_json) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [artId, category, title, readTime, finalExcerpt, JSON.stringify(contentArray)]
+    );
+
+    addServerLog('ADMIN', `Admin menambahkan artikel baru: "${title}" (${category})`);
+    res.status(201).json({ ok: true, id: artId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/content/articles/:id', requireAdmin, async (req, res) => {
+  try {
+    const artId = String(req.params.id);
+    await query(`DELETE FROM content_articles WHERE id = $1`, [artId]);
+    addServerLog('ADMIN', `Admin menghapus artikel ID: ${artId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 3. VIDEOS
+app.post('/api/admin/content/videos', requireAdmin, async (req, res) => {
+  try {
+    const category = String(req.body?.category || 'Bimbingan Sosial').trim().slice(0, 80);
+    const title = String(req.body?.title || '').trim().slice(0, 200);
+    const duration = String(req.body?.duration || '5:00').trim().slice(0, 50);
+    const description = String(req.body?.description || '').trim();
+    const rawYoutube = String(req.body?.youtubeUrlOrId || req.body?.youtubeId || '').trim();
+    const youtubeId = extractYoutubeId(rawYoutube);
+
+    let keyTakeaways = [];
+    if (Array.isArray(req.body?.keyTakeaways)) {
+      keyTakeaways = req.body.keyTakeaways.map((k) => String(k).trim()).filter(Boolean);
+    } else if (typeof req.body?.keyTakeaways === 'string') {
+      keyTakeaways = req.body.keyTakeaways
+        .split('\n')
+        .map((k) => k.replace(/^[•\-\*]\s*/, '').trim())
+        .filter(Boolean);
+    }
+
+    if (!title || !youtubeId) {
+      return res.status(400).json({ error: 'Judul dan Link/ID YouTube wajib diisi.' });
+    }
+
+    const vidId = `vid-custom-${Date.now()}`;
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}`;
+
+    await query(
+      `INSERT INTO content_videos (id, category, title, duration, description, youtube_id, embed_url, key_takeaways_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        vidId,
+        category,
+        title,
+        duration,
+        description,
+        youtubeId,
+        embedUrl,
+        JSON.stringify(keyTakeaways),
+      ]
+    );
+
+    addServerLog('ADMIN', `Admin menambahkan video edukasi baru: "${title}" (${category})`);
+    res.status(201).json({ ok: true, id: vidId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
+  try {
+    const vidId = String(req.params.id);
+    await query(`DELETE FROM content_videos WHERE id = $1`, [vidId]);
+    addServerLog('ADMIN', `Admin menghapus video ID: ${vidId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

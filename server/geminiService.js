@@ -1,6 +1,6 @@
 const https = require('https');
 const dns = require('dns');
-const { TOPICS, REFLECTION_CLOSING } = require('./counselorData');
+const { TOPICS, REFLECTION_CLOSING, EDUCATIONAL_INFOGRAPHICS } = require('./counselorData');
 
 dns.setDefaultResultOrder('ipv4first');
 
@@ -42,7 +42,7 @@ function postJsonIPv4(urlString, payload) {
       }
     );
 
-    req.setTimeout(20000, () => {
+    req.setTimeout(5000, () => {
       req.destroy(new Error('Request timeout connecting to Gemini API'));
     });
 
@@ -119,28 +119,57 @@ function detectClosingIntent(text) {
   return CLOSING_PATTERNS.some((regex) => regex.test(raw));
 }
 
+const IMAGE_REQUEST_PATTERNS = [
+  /gambar/i,
+  /infografis/i,
+  /foto/i,
+  /ilustrasi/i,
+  /visual/i,
+  /poster/i,
+  /diagram/i,
+  /skema/i,
+  /tampilkan\s*gambar/i,
+  /kirim.*gambar/i,
+  /liat.*gambar/i,
+  /ada\s*gambar/i,
+  /ada.*infografis/i,
+];
+
+function detectImageRequest(text) {
+  const raw = String(text || '').trim();
+  return IMAGE_REQUEST_PATTERNS.some((regex) => regex.test(raw));
+}
+
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
-const BACKOFF_DELAYS = [2000, 4000, 8000]; // Jeda 2 detik, 4 detik, 8 detik (Exponential Backoff)
+const BACKOFF_DELAYS = [2000, 4000]; // Jeda 2 detik lalu 4 detik untuk Exponential Backoff
+const MAX_ATTEMPTS_PER_MODEL = 3; // Maksimal 3 kali percobaan per model pada transient error (503 / 429)
 
 function getModelFallbackChain() {
-  const primaryModel = (process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite').trim();
+  const primaryModel = (process.env.GEMINI_MODEL || 'gemini-2.5-flash').trim();
   const fallbacksEnv = (process.env.GEMINI_FALLBACK_MODELS || '').trim();
 
   let chain = [primaryModel];
   if (fallbacksEnv) {
     const list = fallbacksEnv.split(',').map((m) => m.trim()).filter(Boolean);
     chain.push(...list);
-  } else {
-    // Default fallback chain jika tidak diatur di .env
-    const defaults = ['gemini-3.5-flash', 'gemini-2.5-flash', 'gemini-2.0-flash'];
-    chain.push(...defaults);
   }
+
+  // Selalu sertakan model alternatif stabil resmi Google agar tidak pernah kehabisan model alternatif saat terjadi 503
+  const stableDefaults = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  chain.push(...stableDefaults);
 
   // Hilangkan duplikasi dengan tetap menjaga urutan
   return Array.from(new Set(chain.filter(Boolean)));
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function isDnsResolutionError(err) {
+  if (!err) return false;
+  const code = (err.code || '').toUpperCase();
+  const msg = (err.message || '').toLowerCase();
+  return code === 'ENOTFOUND' || code === 'EAI_AGAIN' || msg.includes('eai_again') || msg.includes('enotfound');
+}
 
 function isTransientNetworkError(err) {
   if (!err) return false;
@@ -149,10 +178,7 @@ function isTransientNetworkError(err) {
   return (
     code === 'econnreset' ||
     code === 'etimedout' ||
-    code === 'enotfound' ||
-    code === 'eai_again' ||
     msg.includes('timeout') ||
-    msg.includes('network') ||
     msg.includes('socket hang up') ||
     msg.includes('econnreset')
   );
@@ -172,10 +198,13 @@ async function generateCounselorResponse({
 }) {
   const topic = TOPICS.find((t) => t.id === topicId) || TOPICS[0];
   const isClosingRequested = detectClosingIntent(userMessage);
+  const isImageRequested = detectImageRequest(userMessage);
 
   let nextStage = 4;
   if (isClosingRequested) {
     nextStage = 9;
+  } else if (isImageRequested) {
+    nextStage = 4; // Pengguna meminta media informasi konkrit
   } else if (currentStage <= 3 && conversationHistory.length <= 2) {
     nextStage = 3;
   } else if (currentStage === 3) {
@@ -202,6 +231,7 @@ async function generateCounselorResponse({
       customSystemPersona,
       keywordEmergency,
       isClosingRequested,
+      isImageRequested,
     });
 
     const finalIsClosing = Boolean(
@@ -276,22 +306,46 @@ async function generateCounselorResponse({
 
     // Safe fallback jika semua model Gemini gagal / timeout / transient error tak terselesaikan
     const topicSolutions = topic.generalSolution || {};
+    const topicInfographic = EDUCATIONAL_INFOGRAPHICS[topic.id] || null;
+    const isAskingForSolution = /solusi|langkah|tips|cara|gimana|bagaimana|bantu|saran|tindakan/i.test(userMessage);
+
+    let fallbackContent;
+    if (isImageRequested && topicInfographic) {
+      fallbackContent = `Tentu saja, ${userName || 'Teman'}! Ini dia infografis visual panduan "${topicInfographic.title}" yang bisa langsung kamu simak dan simpan untuk membantumu memahami materi ini dengan lebih jelas:`;
+    } else if (isAskingForSolution) {
+      fallbackContent = `Aku sangat memahami apa yang kamu rasakan mengenai "${topic.title}". Berikut beberapa langkah praktis yang bisa mulai kamu coba pelan-pelan:`;
+    } else {
+      fallbackContent = `Halo ${userName || 'Teman'}, terima kasih sudah berbagi cerita. Aku mendengarkanmu dengan baik. Perasaan yang kamu rasakan tentang "${topic.title}" itu sangat wajar dan valid. Apa ada hal tertentu yang paling membuatmu merasa terbebani saat ini?`;
+    }
+
+    const fallbackChecklist = isAskingForSolution
+      ? Array.isArray(topicSolutions.checklist) && topicSolutions.checklist.length > 0
+        ? topicSolutions.checklist
+        : [
+            'Tarik napas perlahan dan tenangkan pikiran sejenak.',
+            'Identifikasi hal kecil yang paling bisa kamu kendalikan hari ini.',
+            'Diskusikan dengan teman terpercaya atau Guru BK jika terasa semakin berat.',
+          ]
+      : [];
+
+    const fallbackTipBox = isAskingForSolution && topic.topicSpecificSolution?.tipBox
+      ? topic.topicSpecificSolution.tipBox
+      : null;
+
     return {
-      content: `Halo ${userName || 'Teman'}, terima kasih sudah berbagi cerita dengan jujur. Aku sangat mengapresiasi keberanianmu mengekspresikan apa yang kamu rasakan tentang "${topic.title}". Meskipun jaringan sedang dalam penyesuaian otomatis, aku ingin kamu tahu bahwa perasaanmu valid dan kamu tidak sendirian.`,
+      content: fallbackContent,
       structured: {
-        checklist: Array.isArray(topicSolutions.checklist) && topicSolutions.checklist.length > 0
-          ? topicSolutions.checklist
-          : [
-              'Tarik napas perlahan dan tenangkan pikiran sejenak.',
-              'Identifikasi hal kecil yang paling bisa kamu kendalikan hari ini.',
-              'Diskusikan dengan teman terpercaya atau Guru BK jika terasa semakin berat.',
-            ],
-        tipBox: topic.topicSpecificSolution?.tipBox || {
-          title: 'Tips Pendukung:',
-          text: 'Setiap proses butuh waktu. Yang terpenting kamu tidak memendam masalah ini sendirian.',
-        },
-        footerText: 'Bagaimana perasaanmu sekarang? Apakah ingin melanjutkan bercerita atau menghubungi Guru BK?',
-        quickReplies: ['Ceritakan lebih detail', 'Hubungi Guru BK', 'Tutup Pembicaraan'],
+        checklist: fallbackChecklist,
+        tipBox: fallbackTipBox,
+        infographic: isImageRequested ? topicInfographic : null,
+        footerText: isAskingForSolution
+          ? 'Menurutmu, langkah mana yang paling nyaman untuk kamu coba lebih dulu?'
+          : 'Aku di sini siap mendengarkan kalau kamu masih ingin bercerita.',
+        quickReplies: isImageRequested
+          ? ['Jelaskan infografis ini', 'Beri contoh praktis', 'Tutup Pembicaraan']
+          : isAskingForSolution
+          ? ['Coba langkah pertama', 'Ceritakan lebih detail', 'Tutup Pembicaraan']
+          : ['Ceritakan lebih detail', 'Minta saran/solusi', 'Tutup Pembicaraan'],
         isClosing: false,
         isEmergency: false,
         emergencyLevel: 'normal',
@@ -321,16 +375,28 @@ async function callGeminiApi({
   customSystemPersona,
   keywordEmergency,
   isClosingRequested,
+  isImageRequested,
 }) {
+  const topicInfographic = EDUCATIONAL_INFOGRAPHICS[topic.id] || null;
+
   const stageGuidance = isClosingRequested
     ? `PENGGUNA MEMILIH UNTUK MENUTUP / MENGAKHIRI PEMBICARAAN KONSELING.
 Berikan pesan penutup konseling yang sangat hangat, mengapresiasi keberanian "${userName || 'Teman'}" karena sudah berbagi cerita hari ini, rangkum singkat penguatan positif dari obrolan sebelumnya, dan sampaikan bahwa pintu SociaCare AI selalu terbuka kapan pun ia ingin bercerita lagi.
-Wajib set "isClosing": true, biarkan "checklist": [] dan "tipBox": null, isi "footerText" dengan kalimat perpisahan yang menenangkan (misal: "Kamu hebat sudah berani bercerita hari ini. Sampai jumpa lagi ya! 💙"), dan isi "quickReplies" dengan ["Selesai & Penutup 💙", "Fitur Lainnya", "Hubungi Guru BK"].`
+Wajib set "isClosing": true, biarkan "checklist": [], "tipBox": null, "infographic": null, isi "footerText" dengan kalimat perpisahan yang menenangkan, dan isi "quickReplies" dengan ["Selesai & Penutup 💙", "Fitur Lainnya", "Hubungi Guru BK"].`
+    : isImageRequested
+    ? `PENGGUNA MEMINTA GAMBAR / INFOGRAFIS EDUKASI SECARA EKSPLISIT.
+SociaCare AI memiliki kemampuan mengirim infografis gambar visual resmi. Sambut permintaan mereka dengan sangat antusias dan ramah, jelaskan secara singkat isi gambar tersebut, dan WAJIB sertakan objek "infographic" lengkap dari topik "${topic.title}":
+- id: "${topicInfographic?.id || 'assertive-communication'}"
+- title: "${topicInfographic?.title || 'Infografis Edukasi Sosial'}"
+- category: "${topicInfographic?.category || topic.title}"
+- caption: "${topicInfographic?.caption || 'Panduan visual bimbingan konseling'}"
+- url: "${topicInfographic?.url || '/infographics/assertive-communication.svg'}"
+JANGAN PERNAH menolak atau berkata "aku belum bisa menampilkan gambar"! Nyatakan bahwa kamu menyertakan kartu infografis visual tersebut di bawah ini.`
     : nextStage === 3
-    ? `Pengguna baru mulai bercerita. Dengarkan dengan penuh empati, tanggapi isi pesan secara spesifik dan natural, lalu ajukan 1 pertanyaan lembut untuk menggali cerita/perasaan mereka lebih dalam. Untuk tahap awal ini, biarkan "checklist" berupa array kosong [] dan "tipBox" bernilai null.`
+    ? `Pengguna baru mulai bercerita. Dengarkan dengan penuh empati, tanggapi isi pesan secara spesifik dan natural, lalu ajukan 1 pertanyaan lembut untuk menggali cerita/perasaan mereka lebih dalam. Di tahap awal ini, cukup balas dengan teks biasa ("checklist": [], "tipBox": null, "infographic": null).`
     : nextStage === 4
-    ? `Berikan respons empatik yang menjawab langsung cerita pengguna, lalu berikan 3-4 langkah solusi konkrit yang relevan dengan masalah mereka di dalam array "checklist". Sertakan pertanyaan reflektif singkat di "footerText" (misalnya menanyakan langkah mana yang paling nyaman dicoba).`
-    : `Jawab langsung pertanyaan atau tanggapan terbaru pengguna secara kontekstual dan mendalam sesuai topik "${topic.title}". Jika relevan, berikan poin-poin langkah/contoh di "checklist" dan berikan 1 tips praktis di dalam "tipBox" ({"title": "Tips Tambahan:", "text": "..."}). Di "footerText", tanyakan apakah masih ada hal lain yang ingin diceritakan atau apakah pengguna ingin menutup pembicaraan.`;
+    ? `Tanggapi cerita pengguna secara kontekstual dan empatik. Kamu bebas memilih format balasan: jika pengguna membutuhkan panduan praktis, kamu boleh menyertakan "checklist" solusi atau "infographic". Jika percakapan lebih cocok dijawab dengan chat biasa, cukup balas dengan teks percakapan biasa tanpa checklist.`
+    : `Jawab pertanyaan atau tanggapan pengguna secara kontekstual sesuai topik "${topic.title}". Pilih format balasan secara custom: bisa teks biasa saja, teks + tips, teks + checklist, atau teks + infografis gambar. Sesuaikan dengan apa yang paling membantu pengguna saat ini.`;
 
   const basePersona = (customSystemPersona || DEFAULT_SYSTEM_PERSONA)
     .replace(/\{nama\}/gi, userName || 'Teman')
@@ -341,8 +407,40 @@ Wajib set "isClosing": true, biarkan "checklist": [] dan "tipBox": null, isi "fo
 Topik konseling yang dipilih: "${topic.title}".
 Nama: "${userName}".
 
-Panduan Respons Saat Ini:
+Panduan Tahap Percakapan:
 ${stageGuidance}
+
+KEBEBASAN FORMAT PESAN (KUSTOMISASI PENUH OLEH AI):
+Kamu memiliki otonomi dan kebebasan penuh dalam menentukan format dan bentuk pesan balasanmu agar interaksi terasa hidup, fleksibel, mengalir alami, dan tidak kaku seperti robot template:
+
+1. CHAT BIASA (HANYA TEKS MURNI TANPA CHECKLIST/GAMBAR):
+   - Jika pengguna sedang menyapa, curhat mengalir, mengobrol santai, mengajukan pertanyaan umum, atau saat respons cukup dijawab dengan penjelasan teks ramah:
+   - Tuliskan pesanmu secara lengkap dan mengalir di "intro".
+   - Atur "checklist": [], "tipBox": null, dan "infographic": null.
+   - JANGAN memaksakan badge checklist biru atau gambar jika percakapan tidak membutuhkannya! Chat biasa teks murni sangat disukai untuk menjaga obrolan tetap akrab dan tidak menggurui.
+
+2. CHAT DENGAN CHECKLIST SOLUSI:
+   - Gunakan "checklist": ["Langkah 1", "Langkah 2", ...] HANYA saat pengguna meminta solusi langkah demi langkah ("gimana caranya?", "ada solusinya?", "tipsnya apa?"), atau saat kamu merasa pengguna butuh panduan tindakan yang terstruktur.
+
+3. CHAT DENGAN TIP BOX (LAMPU KUNING 💡):
+   - Gunakan "tipBox": { "title": "Tips Tambahan:", "text": "..." } HANYA jika ada 1 catatan penting atau pengingat positif yang ingin kamu sorot secara khusus. Jika tidak perlu, biarkan null.
+
+4. CHAT DENGAN GAMBAR / INFOGRAFIS VISUAL:
+   - SociaCare AI memiliki katalog infografis resmi:
+     * Komunikasi Asertif: id "assertive-communication", url "/infographics/assertive-communication.svg"
+     * Kepercayaan Diri: id "presentation-confidence", url "/infographics/presentation-confidence.svg"
+     * Pertemanan Sehat: id "healthy-friendship", url "/infographics/healthy-friendship.svg"
+     * Mencegah Bullying: id "stop-bullying", url "/infographics/stop-bullying.svg"
+   - Sertakan objek "infographic" HANYA jika pengguna meminta gambar/infografis secara eksplisit ("ada gambarnya?", "kirim infografisnya dong") ATAU jika menurutmu diagram visual tersebut sangat tepat untuk memperjelas topik. Jika tidak diminta atau tidak perlu, WAJIB biarkan null.
+
+5. KOMBINASI BEBAS SESUAI KONTEKS:
+   - Kamu bebas mengirim balasan dalam bentuk apa pun:
+     * Hanya teks biasa
+     * Teks biasa + checklist
+     * Teks biasa + gambar
+     * Teks biasa + tipbox
+     * Teks biasa + checklist + tipbox + gambar
+   Tentukan sendiri bentuk yang paling pas dan nyaman untuk pengguna!
 
 DETEKSI KONDISI GAWAT DARURAT / SANGAT PARAH (PENTING!):
 Analisis apakah pesan pengguna menunjukkan kondisi DARURAT / SANGAT PARAH, seperti:
@@ -353,9 +451,9 @@ Analisis apakah pesan pengguna menunjukkan kondisi DARURAT / SANGAT PARAH, seper
 
 Jika terdeteksi kondisi darurat/sangat parah (atau jika indikator keyword darurat = ${keywordEmergency ? 'YA, WAJIB SET isEmergency: true' : 'Evaluasi dari isi pesan'}):
 1. Set "isEmergency": true dan "emergencyLevel": "critical".
-2. Isi "emergencyWarning" dengan pesan peringatan darurat berbasis AI yang tegas namun penuh kepedulian untuk pengguna (mengingatkan bahwa nyawa dan keselamatan mereka sangat berharga, meminta mereka menarik napas dan tidak melakukan tindakan berbahaya, serta segera menghubungi Konselor/Guru BK atau layanan darurat 119 ext 8).
-3. Isi "emergencyReason" dengan ringkasan singkat dan jelas untuk Admin/Konselor mengenai alasan pengguna masuk status gawat darurat.
-4. Di "checklist", berikan langkah penyelamatan diri darurat saat ini (misal: menjauh dari benda berbahaya, menemui orang dewasa/teman terpercaya di dekatnya, menghubungi konselor).
+2. Isi "emergencyWarning" dengan pesan peringatan darurat berbasis AI yang tegas namun penuh kepedulian untuk pengguna.
+3. Isi "emergencyReason" dengan ringkasan singkat dan jelas untuk Admin/Konselor.
+4. Di "checklist", berikan langkah penyelamatan diri darurat saat ini.
 Jika kondisi pengguna normal/masalah sosial biasa (bukan krisis keselamatan jiwa), set "isEmergency": false, "emergencyLevel": "normal", "emergencyReason": "", dan "emergencyWarning": "".
 
 DETEKSI PENUTUPAN PEMBICARAAN:
@@ -363,11 +461,12 @@ Jika pengguna menyatakan sudah cukup bercerita, ingin mengakhiri/menutup sesi pe
 
 Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) dengan struktur berikut:
 {
-  "intro": "Tanggapan utama kamu yang menjawab langsung pesan secara empatik dan natural",
-  "checklist": ["Poin langkah/contoh 1", "Poin langkah/contoh 2"],
-  "tipBox": { "title": "Tips Tambahan:", "text": "Tips praktis singkat yang relevan" } atau null,
-  "footerText": "Pertanyaan lanjutan atau kalimat penutup yang hangat",
-  "quickReplies": ["Balasan singkat relevan 1", "Masih ada", "Tutup Pembicaraan"],
+  "intro": "Pesan utama kamu (bisa chat teks biasa yang ramah atau penjelasan lengkap)",
+  "checklist": [],
+  "tipBox": null,
+  "infographic": null,
+  "footerText": "Pertanyaan pemantik atau kalimat penutup hangat (bisa kosong '' jika tidak diperlukan)",
+  "quickReplies": ["Balasan singkat 1", "Balasan singkat 2"],
   "isClosing": false,
   "isEmergency": false,
   "emergencyLevel": "normal",
@@ -388,12 +487,23 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
 
   const modelChain = getModelFallbackChain();
   let lastError = null;
+  const overallStartTime = Date.now();
+  const MAX_TOTAL_CALL_TIME_MS = 25000; // Maksimal total 25 detik agar cukup untuk backoff retry (2s, 4s) dan model fallback
 
   for (let mIdx = 0; mIdx < modelChain.length; mIdx++) {
+    if (Date.now() - overallStartTime > MAX_TOTAL_CALL_TIME_MS) {
+      console.warn(`[SociaCare AI Fallback] Batas waktu kumulatif (${Date.now() - overallStartTime}ms) tercapai. Beralih langsung ke konselor fallback.`);
+      break;
+    }
+
     const modelName = modelChain[mIdx];
     const nextModel = modelChain[mIdx + 1];
 
-    for (let attempt = 1; attempt <= BACKOFF_DELAYS.length; attempt++) {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS_PER_MODEL; attempt++) {
+      if (Date.now() - overallStartTime > MAX_TOTAL_CALL_TIME_MS) {
+        break;
+      }
+
       const t0 = Date.now();
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(
         apiKey
@@ -412,14 +522,22 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
         const latencyMs = Date.now() - t0;
 
         if (!res.ok) {
+          // Jika API key tidak valid / ditolak (400 atau 403), jangan coba model lain dengan key yang sama
+          if (res.status === 400 || res.status === 403) {
+            lastError = new Error(`Gemini API HTTP ${res.status}: ${res.text}`);
+            console.warn(`[SociaCare AI Fallback] API key ditolak atau tidak valid (HTTP ${res.status}). Menghentikan percobaan model dan beralih ke konselor fallback.`);
+            throw lastError;
+          }
+
           const isTransient = RETRYABLE_STATUS_CODES.has(res.status);
           const errorMsg = `Gemini API (${modelName}) HTTP ${res.status}: ${res.text}`;
           lastError = new Error(errorMsg);
 
-          if (isTransient && attempt < BACKOFF_DELAYS.length) {
-            const delay = BACKOFF_DELAYS[attempt - 1];
+          // Retry otomatis untuk status 503 / 429 / 500 dengan Exponential Backoff (2 detik, 4 detik)
+          if (isTransient && attempt < MAX_ATTEMPTS_PER_MODEL) {
+            const delay = BACKOFF_DELAYS[attempt - 1] || 4000;
             console.warn(
-              `[SociaCare AI Backoff] HTTP ${res.status} pada ${modelName} (Percobaan ${attempt}/${BACKOFF_DELAYS.length}). Menunggu jeda ${delay / 1000}s sebelum retry otomatis...`
+              `[SociaCare AI Backoff] HTTP ${res.status} (High Demand/Unavailable) pada ${modelName} (Percobaan ${attempt}/${MAX_ATTEMPTS_PER_MODEL}). Menunggu jeda ${delay / 1000}s sebelum retry otomatis...`
             );
             await sleep(delay);
             continue;
@@ -427,7 +545,7 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
 
           console.warn(
             `[SociaCare AI Fallback] Model ${modelName} gagal setelah ${attempt} percobaan (HTTP ${res.status}). ${
-              nextModel ? `Mengalihkan request ke model alternatif ${nextModel}...` : 'Tidak ada model alternatif tersisa.'
+              nextModel ? `Mengalihkan request ke model alternatif ${nextModel}...` : 'Beralih ke konselor fallback lokal.'
             }`
           );
           break; // Keluar dari loop retry attempt, beralih ke model fallback berikutnya
@@ -520,6 +638,13 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
               !isClosingDetected && parsed.tipBox && parsed.tipBox.text
                 ? parsed.tipBox
                 : null,
+            infographic: isClosingDetected
+              ? null
+              : parsed.infographic && parsed.infographic.url
+              ? parsed.infographic
+              : isImageRequested
+              ? topicInfographic
+              : null,
             footerText: parsed.footerText || '',
             quickReplies: isClosingDetected
               ? ['Selesai & Penutup 💙', 'Pilih Topik Baru', 'Fitur Lainnya']
@@ -550,12 +675,29 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
         };
       } catch (err) {
         lastError = err;
+
+        if (isDnsResolutionError(err)) {
+          console.warn(`[SociaCare AI Fallback] DNS hostname tidak dapat dijangkau (${err.message}). Beralih langsung ke konselor fallback.`);
+          throw lastError;
+        }
+
+        // Jika API key ditolak (sudah dilempar dari atas), langsung lempar ke konselor fallback
+        if (err.message && (err.message.includes('HTTP 400') || err.message.includes('HTTP 403'))) {
+          throw lastError;
+        }
+
+        const isTimeout = err.message && err.message.toLowerCase().includes('timeout');
+        if (isTimeout) {
+          console.warn(`[SociaCare AI Fallback] Model ${modelName} mengalami timeout. Beralih ke model berikutnya...`);
+          break; // Segera ganti model jika timeout
+        }
+
         const isTransient = isTransientNetworkError(err);
 
-        if (isTransient && attempt < BACKOFF_DELAYS.length) {
-          const delay = BACKOFF_DELAYS[attempt - 1];
+        if (isTransient && attempt < MAX_ATTEMPTS_PER_MODEL && (Date.now() - overallStartTime < MAX_TOTAL_CALL_TIME_MS - 2000)) {
+          const delay = BACKOFF_DELAYS[attempt - 1] || 4000;
           console.warn(
-            `[SociaCare AI Backoff] Gangguan jaringan (${err.message}) pada ${modelName} (Percobaan ${attempt}/${BACKOFF_DELAYS.length}). Menunggu jeda ${delay / 1000}s sebelum retry otomatis...`
+            `[SociaCare AI Backoff] Gangguan jaringan (${err.message}) pada ${modelName} (Percobaan ${attempt}/${MAX_ATTEMPTS_PER_MODEL}). Menunggu jeda ${delay / 1000}s sebelum retry otomatis...`
           );
           await sleep(delay);
           continue;
@@ -563,7 +705,7 @@ Kembalikan respons HANYA dalam format JSON valid (tanpa markdown code block) den
 
         console.warn(
           `[SociaCare AI Fallback] Model ${modelName} gagal: ${err.message}. ${
-            nextModel ? `Mengalihkan request ke model alternatif ${nextModel}...` : 'Tidak ada model alternatif tersisa.'
+            nextModel ? `Mengalihkan request ke model alternatif ${nextModel}...` : 'Beralih ke konselor fallback lokal.'
           }`
         );
         break; // Lanjut ke model fallback berikutnya

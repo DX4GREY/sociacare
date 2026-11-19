@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF1F2" />
+      <stop offset="100%" stop-color="#FFE4E6" />
+    </linearGradient>
+    <linearGradient id="cardGrad4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#BE123C" />
+      <stop offset="100%" stop-color="#881337" />
+    </linearGradient>
+    <filter id="shadow4" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#BE123C" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <rect width="800" height="500" rx="28" fill="url(#bgGrad4)" />
+  <rect x="12" y="12" width="776" height="476" rx="22" fill="none" stroke="#FECDD3" stroke-width="2" stroke-dasharray="8 6" />
+
+  <rect x="40" y="32" width="720" height="76" rx="18" fill="url(#cardGrad4)" filter="url(#shadow4)" />
+  <text x="70" y="66" fill="#FECDD3" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="bold" letter-spacing="2">PENCEGAHAN &amp; PERLINDUNGAN SISWA</text>
+  <text x="70" y="92" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800">Alur Tanggap 4T: Hadapi &amp; Laporkan Bullying</text>
+  <rect x="620" y="48" width="120" height="42" rx="12" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" />
+  <text x="680" y="74" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" text-anchor="middle">🛡️ Stop Bully</text>
+
+  <!-- Step 1: Tolak -->
+  <g transform="translate(40, 130)" filter="url(#shadow4)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#FECDD3" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#FFE4E6" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">✋</text>
+    <rect x="20" y="95" width="40" height="20" rx="6" fill="#BE123C" />
+    <text x="40" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">1. T</text>
+    <text x="20" y="136" fill="#881337" font-family="system-ui, sans-serif" font-size="15" font-weight="800">Tolak Tegas</text>
+    <text x="20" y="154" fill="#9F1239" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Bicara Jelas</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#FFE4E6" stroke-width="2" />
+    <text x="20" y="196" fill="#881337" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Katakan "Berhenti,</tspan>
+      <tspan x="20" dy="16">aku tidak suka kamu</tspan>
+      <tspan x="20" dy="16">bicara begitu" dengan</tspan>
+      <tspan x="20" dy="16">tatapan tenang.</tspan>
+    </text>
+  </g>
+
+  <!-- Step 2: Tinggalkan -->
+  <g transform="translate(224, 130)" filter="url(#shadow4)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#FECDD3" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#FFE4E6" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">🚶</text>
+    <rect x="20" y="95" width="40" height="20" rx="6" fill="#BE123C" />
+    <text x="40" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">2. T</text>
+    <text x="20" y="136" fill="#881337" font-family="system-ui, sans-serif" font-size="15" font-weight="800">Tinggalkan</text>
+    <text x="20" y="154" fill="#9F1239" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Menjauh ke Aman</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#FFE4E6" stroke-width="2" />
+    <text x="20" y="196" fill="#881337" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Jangan membalas</tspan>
+      <tspan x="20" dy="16">dengan fisik atau</tspan>
+      <tspan x="20" dy="16">makian. Segera jalan</tspan>
+      <tspan x="20" dy="16">menuju tempat ramai.</tspan>
+    </text>
+  </g>
+
+  <!-- Step 3: Tenang & Catat -->
+  <g transform="translate(408, 130)" filter="url(#shadow4)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#FECDD3" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#FFE4E6" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">📝</text>
+    <rect x="20" y="95" width="40" height="20" rx="6" fill="#BE123C" />
+    <text x="40" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">3. T</text>
+    <text x="20" y="136" fill="#881337" font-family="system-ui, sans-serif" font-size="15" font-weight="800">Tetap Tenang</text>
+    <text x="20" y="154" fill="#9F1239" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Simpan Bukti</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#FFE4E6" stroke-width="2" />
+    <text x="20" y="196" fill="#881337" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Tarik napas rileks.</tspan>
+      <tspan x="20" dy="16">Catat waktu, lokasi,</tspan>
+      <tspan x="20" dy="16">atau screenshot jika</tspan>
+      <tspan x="20" dy="16">terjadi di medsos.</tspan>
+    </text>
+  </g>
+
+  <!-- Step 4: Terbuka ke Guru BK -->
+  <g transform="translate(592, 130)" filter="url(#shadow4)">
+    <rect width="168" height="310" rx="18" fill="#FFFFFF" stroke="#FECDD3" stroke-width="2" />
+    <circle cx="84" cy="50" r="28" fill="#FFE4E6" />
+    <text x="84" y="58" font-size="22" text-anchor="middle">🏫</text>
+    <rect x="20" y="95" width="40" height="20" rx="6" fill="#BE123C" />
+    <text x="40" y="109" fill="#FFFFFF" font-family="system-ui, sans-serif" font-size="11" font-weight="800" text-anchor="middle">4. T</text>
+    <text x="20" y="136" fill="#881337" font-family="system-ui, sans-serif" font-size="15" font-weight="800">Temui BK</text>
+    <text x="20" y="154" fill="#9F1239" font-family="system-ui, sans-serif" font-size="11" font-weight="600">Ceritakan Segera</text>
+    <line x1="20" y1="170" x2="148" y2="170" stroke="#FFE4E6" stroke-width="2" />
+    <text x="20" y="196" fill="#881337" font-family="system-ui, sans-serif" font-size="11">
+      <tspan x="20" dy="0">Melapor bukan berarti</tspan>
+      <tspan x="20" dy="16">mengadu, melainkan</tspan>
+      <tspan x="20" dy="16">melindungi diri dan</tspan>
+      <tspan x="20" dy="16">teman-temanmu.</tspan>
+    </text>
+  </g>
+
+  <text x="400" y="472" fill="#9F1239" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">💡 Kamu tidak sendirian dan tidak bersalah atas perlakuan buruk orang lain. Ada Guru BK yang siap melindungimu.</text>
+</svg>

@@ -15,9 +15,9 @@ export const TOPIC_CARDS = [
   },
   {
     id: 'communication',
-    title: 'Komunikasi Efektif',
-    shortTitle: 'Komunikasi Efektif',
-    desc: 'Kesulitan menyampaikan pendapat secara sopan atau sering terjadi salah paham.',
+    title: 'Komunikasi Asertif & Efektif',
+    shortTitle: 'Komunikasi Asertif',
+    desc: 'Menyampaikan pendapat secara asertif dan sopan tanpa takut salah atau menimbulkan salah paham.',
     Illustration: TopicCommunicationIllustration,
   },
   {

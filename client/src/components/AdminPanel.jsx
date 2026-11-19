@@ -30,6 +30,11 @@ import {
   Zap,
   RotateCcw,
   Save,
+  BookOpen,
+  Video,
+  FileText,
+  Lightbulb,
+  ExternalLink,
 } from 'lucide-react';
 
 function formatBytes(bytes) {
@@ -117,6 +122,35 @@ export default function AdminPanel() {
   const [sqlResult, setSqlResult] = useState(null);
   const [runningSql, setRunningSql] = useState(false);
 
+  // Content Management State (Tips, Artikel, Video)
+  const [contentTab, setContentTab] = useState('tips'); // 'tips' | 'articles' | 'videos'
+  const [contentData, setContentData] = useState({ tips: [], articles: [], videos: [] });
+  const [loadingContent, setLoadingContent] = useState(false);
+  const [contentSearch, setContentSearch] = useState('');
+
+  const [newTipForm, setNewTipForm] = useState({
+    category: 'Hubungan Pertemanan',
+    title: '',
+    description: '',
+  });
+
+  const [newArticleForm, setNewArticleForm] = useState({
+    category: 'Hubungan Pertemanan',
+    title: '',
+    readTime: '3 menit',
+    excerpt: '',
+    content: '',
+  });
+
+  const [newVideoForm, setNewVideoForm] = useState({
+    category: 'Hubungan Pertemanan',
+    title: '',
+    duration: '5:00',
+    description: '',
+    youtubeUrl: '',
+    keyTakeaways: '',
+  });
+
   function showNotification(type, text) {
     setBannerMsg({ type, text });
     setTimeout(() => setBannerMsg(null), 4500);
@@ -135,8 +169,181 @@ export default function AdminPanel() {
       loadAiSettings();
       loadUsers();
       loadCounselingData();
+      loadContentData();
     }
   }, [adminToken]);
+
+  async function loadContentData() {
+    setLoadingContent(true);
+    try {
+      const res = await fetch('/api/content/extras');
+      const data = await res.json();
+      if (data.tips) {
+        setContentData({
+          tips: data.tips || [],
+          articles: data.articles || [],
+          videos: data.videos || [],
+        });
+      }
+    } catch (err) {
+      console.error('Error loading content data:', err);
+    } finally {
+      setLoadingContent(false);
+    }
+  }
+
+  async function handleAddTip(e) {
+    e.preventDefault();
+    if (!newTipForm.title.trim() || !newTipForm.description.trim()) {
+      showNotification('error', 'Judul dan deskripsi tips wajib diisi.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/content/tips', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify(newTipForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', `Tips baru "${newTipForm.title}" berhasil ditambahkan!`);
+        setNewTipForm({
+          category: 'Hubungan Pertemanan',
+          title: '',
+          description: '',
+        });
+        await loadContentData();
+      } else {
+        showNotification('error', data.error || 'Gagal menambahkan tips.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleDeleteTip(id, title) {
+    if (!window.confirm(`Yakin ingin menghapus tips "${title}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/content/tips/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        showNotification('success', 'Tips berhasil dihapus.');
+        await loadContentData();
+      } else {
+        showNotification('error', 'Gagal menghapus tips.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleAddArticle(e) {
+    e.preventDefault();
+    if (!newArticleForm.title.trim() || !newArticleForm.content.trim()) {
+      showNotification('error', 'Judul dan isi artikel wajib diisi.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/content/articles', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify(newArticleForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', `Artikel "${newArticleForm.title}" berhasil diterbitkan!`);
+        setNewArticleForm({
+          category: 'Hubungan Pertemanan',
+          title: '',
+          readTime: '3 menit',
+          excerpt: '',
+          content: '',
+        });
+        await loadContentData();
+      } else {
+        showNotification('error', data.error || 'Gagal menerbitkan artikel.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleDeleteArticle(id, title) {
+    if (!window.confirm(`Yakin ingin menghapus artikel "${title}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/content/articles/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        showNotification('success', 'Artikel berhasil dihapus.');
+        await loadContentData();
+      } else {
+        showNotification('error', 'Gagal menghapus artikel.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleAddVideo(e) {
+    e.preventDefault();
+    if (!newVideoForm.title.trim() || !newVideoForm.youtubeUrl.trim()) {
+      showNotification('error', 'Judul dan Link/ID YouTube wajib diisi.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/content/videos', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify({
+          category: newVideoForm.category,
+          title: newVideoForm.title,
+          duration: newVideoForm.duration,
+          description: newVideoForm.description,
+          youtubeUrlOrId: newVideoForm.youtubeUrl,
+          keyTakeaways: newVideoForm.keyTakeaways,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', `Video edukasi "${newVideoForm.title}" berhasil ditambahkan!`);
+        setNewVideoForm({
+          category: 'Hubungan Pertemanan',
+          title: '',
+          duration: '5:00',
+          description: '',
+          youtubeUrl: '',
+          keyTakeaways: '',
+        });
+        await loadContentData();
+      } else {
+        showNotification('error', data.error || 'Gagal menambahkan video.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleDeleteVideo(id, title) {
+    if (!window.confirm(`Yakin ingin menghapus video "${title}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/content/videos/${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        showNotification('success', 'Video berhasil dihapus.');
+        await loadContentData();
+      } else {
+        showNotification('error', 'Gagal menghapus video.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
 
   async function handleAdminLogin(e) {
     e.preventDefault();
@@ -810,6 +1017,27 @@ export default function AdminPanel() {
               </div>
               <span className="bg-white/20 text-[11px] px-2 py-0.5 rounded-full">
                 {stats?.database?.tables?.chat_sessions ?? allSessions.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('content');
+                loadContentData();
+              }}
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+                activeTab === 'content'
+                  ? 'bg-[#1E5FA8] text-white shadow'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <BookOpen size={18} />
+                <span>Kelola Materi Edukasi</span>
+              </div>
+              <span className="bg-emerald-400/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                Tips • Artikel • Video
               </span>
             </button>
 
@@ -2714,6 +2942,595 @@ export default function AdminPanel() {
                     </table>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* =================================================================== */}
+        {/* TAB 6: KELOLA MATERI EDUKASI (TIPS, ARTIKEL, & VIDEO)              */}
+        {/* =================================================================== */}
+        {activeTab === 'content' && (
+          <div className="space-y-6">
+            {/* Header Banner */}
+            <div className="bg-white border border-[#C5DDF6] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2 rounded-xl bg-[#E8F2FC] text-[#1E5FA8]">
+                    <BookOpen size={24} />
+                  </span>
+                  <h2 className="text-lg sm:text-xl font-extrabold text-[#163A5F]">
+                    Kelola Materi Edukasi Siswa
+                  </h2>
+                </div>
+                <p className="text-xs sm:text-sm text-[#4A6382] mt-1.5 leading-relaxed max-w-2xl">
+                  Admin dapat menambahkan Tips Sosial, Artikel Informasi, dan Video Edukasi YouTube baru. Konten yang ditambahkan akan langsung tampil di halaman <strong>Fitur Lainnya</strong> untuk siswa.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={loadContentData}
+                  disabled={loadingContent}
+                  className="bg-[#EBF4FD] hover:bg-[#DCEBFA] text-[#1E5FA8] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-full transition flex items-center gap-2 cursor-pointer border border-[#C5DDF6]"
+                >
+                  <RefreshCw size={15} className={loadingContent ? 'animate-spin' : ''} />
+                  <span>Refresh Materi</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sub-Tab Navigation Switcher */}
+            <div className="flex items-center gap-2 p-1.5 bg-[#E8F2FC] rounded-2xl max-w-fit border border-[#C5DDF6]">
+              <button
+                type="button"
+                onClick={() => setContentTab('tips')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
+                  contentTab === 'tips'
+                    ? 'bg-[#1E5FA8] text-white shadow-xs'
+                    : 'text-[#163A5F] hover:bg-white/60'
+                }`}
+              >
+                <Lightbulb size={16} />
+                <span>Tips Sosial</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  contentTab === 'tips' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                }`}>
+                  {contentData.tips.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setContentTab('articles')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
+                  contentTab === 'articles'
+                    ? 'bg-[#1E5FA8] text-white shadow-xs'
+                    : 'text-[#163A5F] hover:bg-white/60'
+                }`}
+              >
+                <FileText size={16} />
+                <span>Artikel Informasi</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  contentTab === 'articles' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                }`}>
+                  {contentData.articles.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setContentTab('videos')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
+                  contentTab === 'videos'
+                    ? 'bg-[#1E5FA8] text-white shadow-xs'
+                    : 'text-[#163A5F] hover:bg-white/60'
+                }`}
+              >
+                <Video size={16} />
+                <span>Video Edukasi</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
+                  contentTab === 'videos' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                }`}>
+                  {contentData.videos.length}
+                </span>
+              </button>
+            </div>
+
+            {/* ------------------------------------------------------------- */}
+            {/* SUB-TAB 1: TIPS SOSIAL                                        */}
+            {/* ------------------------------------------------------------- */}
+            {contentTab === 'tips' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Form Tambah Tips (Col 1) */}
+                <div className="lg:col-span-1 bg-white border border-[#C5DDF6] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
+                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#163A5F]">
+                    <Plus size={18} className="text-[#1E5FA8]" />
+                    <span>Tambah Tips Sosial Baru</span>
+                  </div>
+
+                  <form onSubmit={handleAddTip} className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Kategori Konflik / Topik
+                      </label>
+                      <select
+                        value={newTipForm.category}
+                        onChange={(e) =>
+                          setNewTipForm((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      >
+                        <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
+                        <option value="Komunikasi Asertif">Komunikasi Asertif</option>
+                        <option value="Kepercayaan Diri">Kepercayaan Diri</option>
+                        <option value="Pencegahan Bullying">Pencegahan Bullying</option>
+                        <option value="Bimbingan Sosial Umum">Bimbingan Sosial Umum</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Judul Tips
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newTipForm.title}
+                        onChange={(e) =>
+                          setNewTipForm((prev) => ({ ...prev, title: e.target.value }))
+                        }
+                        placeholder="Contoh: Mengatur Napas Saat Tegang"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Deskripsi / Panduan Praktis
+                      </label>
+                      <textarea
+                        rows={4}
+                        required
+                        value={newTipForm.description}
+                        onChange={(e) =>
+                          setNewTipForm((prev) => ({ ...prev, description: e.target.value }))
+                        }
+                        placeholder="Tuliskan uraian tips praktis yang ringkas dan mudah dipahami oleh siswa..."
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <Plus size={16} />
+                      <span>Simpan Tips Baru</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* List Tips Tersedia (Col 2-3) */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                      Daftar Tips Aktif ({contentData.tips.length})
+                    </span>
+                    <span className="text-xs text-[#6B8BA4]">
+                      Tampil di halaman Fitur Lainnya &gt; Tips Sosial
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {contentData.tips.map((tip) => (
+                      <div
+                        key={tip.id}
+                        className="bg-white border border-[#C5DDF6] rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col justify-between space-y-3"
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                              {tip.category}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteTip(tip.id, tip.title)}
+                              className="text-red-500 hover:text-red-700 p-1 rounded-lg hover:bg-red-50 transition cursor-pointer"
+                              title="Hapus Tips"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                          <h4 className="font-extrabold text-sm sm:text-base text-[#163A5F]">
+                            {tip.title}
+                          </h4>
+                          <p className="text-xs text-[#4A6382] mt-1 leading-relaxed">
+                            {tip.description}
+                          </p>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          ID: {tip.id}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* SUB-TAB 2: ARTIKEL INFORMASI                                  */}
+            {/* ------------------------------------------------------------- */}
+            {contentTab === 'articles' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Form Tambah Artikel (Col 1) */}
+                <div className="lg:col-span-1 bg-white border border-[#C5DDF6] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
+                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#163A5F]">
+                    <Plus size={18} className="text-[#1E5FA8]" />
+                    <span>Terbitkan Artikel Baru</span>
+                  </div>
+
+                  <form onSubmit={handleAddArticle} className="space-y-3.5">
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Kategori Artikel
+                      </label>
+                      <select
+                        value={newArticleForm.category}
+                        onChange={(e) =>
+                          setNewArticleForm((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      >
+                        <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
+                        <option value="Komunikasi Asertif">Komunikasi Asertif</option>
+                        <option value="Kepercayaan Diri">Kepercayaan Diri</option>
+                        <option value="Pencegahan Bullying">Pencegahan Bullying</option>
+                        <option value="Psikologi Remaja">Psikologi Remaja</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Judul Artikel
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newArticleForm.title}
+                        onChange={(e) =>
+                          setNewArticleForm((prev) => ({ ...prev, title: e.target.value }))
+                        }
+                        placeholder="Contoh: Mengatasi Rasa Canggung Berbicara di Depan Umum"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Estimasi Waktu Baca
+                      </label>
+                      <input
+                        type="text"
+                        value={newArticleForm.readTime}
+                        onChange={(e) =>
+                          setNewArticleForm((prev) => ({ ...prev, readTime: e.target.value }))
+                        }
+                        placeholder="3 menit"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Ringkasan Singkat (Excerpt)
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={newArticleForm.excerpt}
+                        onChange={(e) =>
+                          setNewArticleForm((prev) => ({ ...prev, excerpt: e.target.value }))
+                        }
+                        placeholder="Ringkasan 1-2 kalimat untuk kartu depan..."
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Isi Lengkap Artikel (Pisahkan Paragraf dengan Enter 2x)
+                      </label>
+                      <textarea
+                        rows={7}
+                        required
+                        value={newArticleForm.content}
+                        onChange={(e) =>
+                          setNewArticleForm((prev) => ({ ...prev, content: e.target.value }))
+                        }
+                        placeholder="Paragraf 1: Pengantar artikel...&#10;&#10;Paragraf 2: Uraian dan langkah psikologis...&#10;&#10;Paragraf 3: Kesimpulan dan dorongan semangat..."
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <Plus size={16} />
+                      <span>Terbitkan Artikel</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* List Artikel Tersedia (Col 2-3) */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                      Daftar Artikel Tersedia ({contentData.articles.length})
+                    </span>
+                    <span className="text-xs text-[#6B8BA4]">
+                      Dapat dibaca lengkap oleh siswa di Fitur Lainnya
+                    </span>
+                  </div>
+
+                  <div className="space-y-4">
+                    {contentData.articles.map((art) => (
+                      <div
+                        key={art.id}
+                        className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-3"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="bg-[#E6F1FC] text-[#1E5FA8] text-xs font-bold px-3 py-0.5 rounded-full">
+                              {art.category}
+                            </span>
+                            <span className="text-xs text-[#6B8BA4]">
+                              • {art.readTime || '3 menit'}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteArticle(art.id, art.title)}
+                            className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition cursor-pointer"
+                            title="Hapus Artikel"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+
+                        <div>
+                          <h4 className="font-extrabold text-base sm:text-lg text-[#163A5F]">
+                            {art.title}
+                          </h4>
+                          <p className="text-xs sm:text-sm text-[#4A6382] mt-1 leading-relaxed">
+                            {art.excerpt}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 border-t border-[#E8F2FC] flex items-center justify-between text-xs">
+                          <span className="text-[#6B8BA4]">
+                            {Array.isArray(art.content) ? `${art.content.length} paragraf` : 'Artikel lengkap'}
+                          </span>
+                          <span className="font-mono text-slate-400 text-[10px]">
+                            ID: {art.id}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ------------------------------------------------------------- */}
+            {/* SUB-TAB 3: VIDEO EDUKASI                                      */}
+            {/* ------------------------------------------------------------- */}
+            {contentTab === 'videos' && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Form Tambah Video (Col 1) */}
+                <div className="lg:col-span-1 bg-white border border-[#C5DDF6] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
+                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#163A5F]">
+                    <Plus size={18} className="text-[#1E5FA8]" />
+                    <span>Tambah Video Edukasi Baru</span>
+                  </div>
+
+                  <form onSubmit={handleAddVideo} className="space-y-3.5">
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Kategori Video
+                      </label>
+                      <select
+                        value={newVideoForm.category}
+                        onChange={(e) =>
+                          setNewVideoForm((prev) => ({ ...prev, category: e.target.value }))
+                        }
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      >
+                        <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
+                        <option value="Komunikasi Asertif">Komunikasi Asertif</option>
+                        <option value="Kepercayaan Diri">Kepercayaan Diri</option>
+                        <option value="Pencegahan Bullying">Pencegahan Bullying</option>
+                        <option value="Bimbingan Sosial Remaja">Bimbingan Sosial Remaja</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Judul Video
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newVideoForm.title}
+                        onChange={(e) =>
+                          setNewVideoForm((prev) => ({ ...prev, title: e.target.value }))
+                        }
+                        placeholder="Contoh: 5 Cara Membangun Rasa Percaya Diri"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Link YouTube atau ID Video
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newVideoForm.youtubeUrl}
+                        onChange={(e) =>
+                          setNewVideoForm((prev) => ({ ...prev, youtubeUrl: e.target.value }))
+                        }
+                        placeholder="https://www.youtube.com/watch?v=... atau ID"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                      <span className="text-[11px] text-[#6B8BA4] mt-0.5 block">
+                        Mendukung link lengkap YouTube atau kode 11 karakter ID.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Estimasi Durasi Video
+                      </label>
+                      <input
+                        type="text"
+                        value={newVideoForm.duration}
+                        onChange={(e) =>
+                          setNewVideoForm((prev) => ({ ...prev, duration: e.target.value }))
+                        }
+                        placeholder="5:20"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Deskripsi Singkat Video
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={newVideoForm.description}
+                        onChange={(e) =>
+                          setNewVideoForm((prev) => ({ ...prev, description: e.target.value }))
+                        }
+                        placeholder="Jelaskan isi pokok video bimbingan ini..."
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                        Poin Penting Video (Satu Poin per Baris)
+                      </label>
+                      <textarea
+                        rows={4}
+                        value={newVideoForm.keyTakeaways}
+                        onChange={(e) =>
+                          setNewVideoForm((prev) => ({ ...prev, keyTakeaways: e.target.value }))
+                        }
+                        placeholder="Poin 1: Asertif berarti jujur tanpa menyakiti teman&#10;Poin 2: Gunakan formula I-Message&#10;Poin 3: Jaga kontak mata yang ramah"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                    >
+                      <Plus size={16} />
+                      <span>Simpan Video Edukasi</span>
+                    </button>
+                  </form>
+                </div>
+
+                {/* List Video Tersedia (Col 2-3) */}
+                <div className="lg:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                      Daftar Video Tersedia ({contentData.videos.length})
+                    </span>
+                    <span className="text-xs text-[#6B8BA4]">
+                      Bisa ditonton langsung oleh siswa di menu Video Edukasi
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {contentData.videos.map((vid) => (
+                      <div
+                        key={vid.id}
+                        className="bg-white border border-[#C5DDF6] rounded-2xl overflow-hidden shadow-2xs flex flex-col justify-between"
+                      >
+                        <div>
+                          {/* Mini Video Preview / Iframe */}
+                          <div className="relative pb-[56.25%] bg-black">
+                            <iframe
+                              src={`https://www.youtube-nocookie.com/embed/${vid.youtubeId}`}
+                              title={vid.title}
+                              className="absolute inset-0 w-full h-full"
+                              allowFullScreen
+                            />
+                          </div>
+
+                          <div className="p-4 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                                {vid.category}
+                              </span>
+                              <span className="text-xs text-[#6B8BA4]">
+                                ⏱️ {vid.duration || '5:00'}
+                              </span>
+                            </div>
+
+                            <h4 className="font-extrabold text-sm sm:text-base text-[#163A5F] leading-snug">
+                              {vid.title}
+                            </h4>
+
+                            <p className="text-xs text-[#4A6382] line-clamp-2">
+                              {vid.description}
+                            </p>
+
+                            {Array.isArray(vid.keyTakeaways) && vid.keyTakeaways.length > 0 && (
+                              <div className="pt-2 border-t border-[#F0F7FF]">
+                                <span className="text-[11px] font-bold text-[#1E5FA8] block mb-1">
+                                  Poin Penting:
+                                </span>
+                                <ul className="text-xs text-[#2B4C6F] space-y-1">
+                                  {vid.keyTakeaways.slice(0, 2).map((pt, pIdx) => (
+                                    <li key={pIdx} className="truncate">
+                                      • {pt}
+                                    </li>
+                                  ))}
+                                  {vid.keyTakeaways.length > 2 && (
+                                    <li className="text-[10px] text-slate-400">
+                                      +{vid.keyTakeaways.length - 2} poin lainnya
+                                    </li>
+                                  )}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="p-4 pt-0 flex items-center justify-between border-t border-[#F0F7FF] mt-2">
+                          <span className="font-mono text-slate-400 text-[10px]">
+                            ID: {vid.id}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVideo(vid.id, vid.title)}
+                            className="text-red-500 hover:text-red-700 text-xs font-bold flex items-center gap-1 hover:bg-red-50 px-2 py-1 rounded transition cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                            <span>Hapus</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </div>

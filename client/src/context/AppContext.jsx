@@ -53,6 +53,7 @@ export function AppProvider({ children }) {
   const [extrasData, setExtrasData] = useState({
     tips: [],
     articles: [],
+    videos: [],
     savedTipIds: [],
   });
   const [counselorRequests, setCounselorRequests] = useState([]);

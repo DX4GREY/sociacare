@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F0FDF4" />
+      <stop offset="100%" stop-color="#DCFCE7" />
+    </linearGradient>
+    <linearGradient id="cardGrad3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#047857" />
+      <stop offset="100%" stop-color="#064E3B" />
+    </linearGradient>
+    <filter id="shadow3" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#047857" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <rect width="800" height="500" rx="28" fill="url(#bgGrad3)" />
+  <rect x="12" y="12" width="776" height="476" rx="22" fill="none" stroke="#A7F3D0" stroke-width="2" stroke-dasharray="8 6" />
+
+  <rect x="40" y="32" width="720" height="76" rx="18" fill="url(#cardGrad3)" filter="url(#shadow3)" />
+  <text x="70" y="66" fill="#A7F3D0" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="bold" letter-spacing="2">PANDUAN HUBUNGAN SOSIAL</text>
+  <text x="70" y="92" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="800">Ciri Pertemanan Sehat vs Toksik</text>
+  <rect x="620" y="48" width="120" height="42" rx="12" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.3)" />
+  <text x="680" y="74" fill="#FFFFFF" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" text-anchor="middle">⚖️ Perbandingan</text>
+
+  <!-- Left: Healthy Column -->
+  <g transform="translate(40, 130)" filter="url(#shadow3)">
+    <rect width="345" height="310" rx="20" fill="#FFFFFF" stroke="#86EFAC" stroke-width="2.5" />
+    <rect x="20" y="20" width="305" height="44" rx="12" fill="#ECFDF5" />
+    <text x="40" y="48" font-size="18">🌱</text>
+    <text x="70" y="48" fill="#065F46" font-family="system-ui, sans-serif" font-size="15" font-weight="800">Pertemanan Sehat (Green Flag)</text>
+    <g transform="translate(25, 85)">
+      <circle cx="12" cy="12" r="10" fill="#10B981" />
+      <text x="12" y="16" fill="#FFFFFF" font-size="11" font-weight="bold" text-anchor="middle">✓</text>
+      <text x="32" y="16" fill="#064E3B" font-family="system-ui, sans-serif" font-size="13" font-weight="700">Saling Mendukung &amp; Menguatkan</text>
+      <text x="32" y="34" fill="#047857" font-family="system-ui, sans-serif" font-size="11">Ikut senang saat kamu berhasil atau berprestasi.</text>
+    </g>
+    <g transform="translate(25, 145)">
+      <circle cx="12" cy="12" r="10" fill="#10B981" />
+      <text x="12" y="16" fill="#FFFFFF" font-size="11" font-weight="bold" text-anchor="middle">✓</text>
+      <text x="32" y="16" fill="#064E3B" font-family="system-ui, sans-serif" font-size="13" font-weight="700">Menghargai Batasan Pribadi</text>
+      <text x="32" y="34" fill="#047857" font-family="system-ui, sans-serif" font-size="11">Tidak memaksamu melakukan hal yang tidak nyaman.</text>
+    </g>
+    <g transform="translate(25, 205)">
+      <circle cx="12" cy="12" r="10" fill="#10B981" />
+      <text x="12" y="16" fill="#FFFFFF" font-size="11" font-weight="bold" text-anchor="middle">✓</text>
+      <text x="32" y="16" fill="#064E3B" font-family="system-ui, sans-serif" font-size="13" font-weight="700">Bisa Menjadi Diri Sendiri</text>
+      <text x="32" y="34" fill="#047857" font-family="system-ui, sans-serif" font-size="11">Kamu merasa aman bercerita tanpa takut dihakimi.</text>
+    </g>
+  </g>
+
+  <!-- Right: Toxic Column -->
+  <g transform="translate(415, 130)" filter="url(#shadow3)">
+    <rect width="345" height="310" rx="20" fill="#FFFFFF" stroke="#FECACA" stroke-width="2.5" />
+    <rect x="20" y="20" width="305" height="44" rx="12" fill="#FEF2F2" />
+    <text x="40" y="48" font-size="18">⚠️</text>
+    <text x="70" y="48" fill="#991B1B" font-family="system-ui, sans-serif" font-size="15" font-weight="800">Pertemanan Toksik (Red Flag)</text>
+    <g transform="translate(25, 85)">
+      <circle cx="12" cy="12" r="10" fill="#EF4444" />
+      <text x="12" y="16" fill="#FFFFFF" font-size="11" font-weight="bold" text-anchor="middle">✕</text>
+      <text x="32" y="16" fill="#7F1D1D" font-family="system-ui, sans-serif" font-size="13" font-weight="700">Sering Menyindir &amp; Meremehkan</text>
+      <text x="32" y="34" fill="#B91C1C" font-family="system-ui, sans-serif" font-size="11">Mengemas ejekan dengan dalih "cuma bercanda".</text>
+    </g>
+    <g transform="translate(25, 145)">
+      <circle cx="12" cy="12" r="10" fill="#EF4444" />
+      <text x="12" y="16" fill="#FFFFFF" font-size="11" font-weight="bold" text-anchor="middle">✕</text>
+      <text x="32" y="16" fill="#7F1D1D" font-family="system-ui, sans-serif" font-size="13" font-weight="700">Menjauhkan atau Mengucilkan</text>
+      <text x="32" y="34" fill="#B91C1C" font-family="system-ui, sans-serif" font-size="11">Mengabaikanmu sengaja saat sedang bersama kelompok.</text>
+    </g>
+    <g transform="translate(25, 205)">
+      <circle cx="12" cy="12" r="10" fill="#EF4444" />
+      <text x="12" y="16" fill="#FFFFFF" font-size="11" font-weight="bold" text-anchor="middle">✕</text>
+      <text x="32" y="16" fill="#7F1D1D" font-family="system-ui, sans-serif" font-size="13" font-weight="700">Datang Hanya Saat Butuh Bantuan</text>
+      <text x="32" y="34" fill="#B91C1C" font-family="system-ui, sans-serif" font-size="11">Menghilang atau dingin saat kamu yang butuh teman.</text>
+    </g>
+  </g>
+
+  <text x="400" y="472" fill="#047857" font-family="system-ui, sans-serif" font-size="12" font-weight="600" text-anchor="middle">💡 Pertemanan yang baik memberi rasa damai, bukan membuatmu merasa lelah atau cemas.</text>
+</svg>
