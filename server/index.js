@@ -2092,12 +2092,16 @@ app.post('/api/admin/photos', requireAdmin, async (req, res) => {
     const title = String(req.body?.title || '').trim().slice(0, 150);
     const category = String(req.body?.category || 'Bimbingan Konseling').trim().slice(0, 80);
     const description = String(req.body?.description || '').trim();
+    const tags = String(req.body?.tags || '').trim();
     let fileUrl = String(req.body?.fileUrl || '').trim();
     const base64Data = req.body?.base64Data; // data:image/png;base64,....
 
     if (!title || (!fileUrl && !base64Data)) {
       return res.status(400).json({ error: 'Judul dan file foto / URL foto wajib diisi.' });
     }
+
+    let fileName = '';
+    let fileSize = 0;
 
     if (base64Data) {
       const matches = String(base64Data).match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
@@ -2114,21 +2118,25 @@ app.post('/api/admin/photos', requireAdmin, async (req, res) => {
         buffer = Buffer.from(base64Data, 'base64');
       }
 
-      const fileName = `ref_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${ext}`;
+      fileName = `ref_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${ext}`;
       const filePath = path.join(uploadsDir, fileName);
       fs.writeFileSync(filePath, buffer);
       fileUrl = `/uploads/${fileName}`;
+      fileSize = buffer.length;
+    } else {
+      const cleanPath = fileUrl.split('?')[0].split('#')[0];
+      fileName = path.basename(cleanPath) || `photo_${Date.now()}.png`;
     }
 
     const photoId = `photo_${Date.now()}`;
     await query(
-      `INSERT INTO ai_reference_photos (id, title, category, description, file_url)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [photoId, title, category, description, fileUrl]
+      `INSERT INTO ai_reference_photos (id, title, category, description, file_url, file_name, file_size, tags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [photoId, title, category, description, fileUrl, fileName, fileSize, tags]
     );
 
     addServerLog('ADMIN', `Admin mengunggah foto referensi konseling baru: "${title}" (${fileUrl})`);
-    res.status(201).json({ ok: true, id: photoId, fileUrl });
+    res.status(201).json({ ok: true, id: photoId, fileUrl, fileName });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

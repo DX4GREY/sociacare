@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS ai_reference_photos (
     category VARCHAR(80) NOT NULL,
     description TEXT NOT NULL,
     file_url TEXT NOT NULL,
-    file_name VARCHAR(255) NOT NULL,
+    file_name VARCHAR(255) DEFAULT '',
     file_size INTEGER DEFAULT 0,
     tags TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
