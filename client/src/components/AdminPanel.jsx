@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { SociaHeartLogo, StudentAvatar } from './Illustrations';
 import {
@@ -195,6 +195,7 @@ export default function AdminPanel() {
     base64Data: '',
     preview: '',
   });
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const [memoryForm, setMemoryForm] = useState({
     topicId: 'general',
@@ -204,9 +205,20 @@ export default function AdminPanel() {
     keyTakeaway: '',
   });
 
+  const notificationTimeoutRef = useRef(null);
+
   function showNotification(type, text) {
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+      notificationTimeoutRef.current = null;
+    }
     setBannerMsg({ type, text });
-    setTimeout(() => setBannerMsg(null), 4500);
+    if (type !== 'loading') {
+      notificationTimeoutRef.current = setTimeout(() => {
+        setBannerMsg(null);
+        notificationTimeoutRef.current = null;
+      }, 4500);
+    }
   }
 
   function adminHeaders() {
@@ -307,6 +319,9 @@ export default function AdminPanel() {
       return;
     }
 
+    setUploadingPhoto(true);
+    showNotification('loading', 'Sedang mengunggah dan memproses foto referensi ke server...');
+
     try {
       const res = await fetch('/api/admin/photos', {
         method: 'POST',
@@ -336,6 +351,8 @@ export default function AdminPanel() {
       }
     } catch (err) {
       showNotification('error', err.message);
+    } finally {
+      setUploadingPhoto(false);
     }
   }
 
@@ -1543,25 +1560,36 @@ export default function AdminPanel() {
           </div>
         )}
 
+        {/* Floating Toast Notification */}
         {bannerMsg && (
           <div
-            className={`p-4 rounded-2xl border text-xs sm:text-sm font-bold flex items-center justify-between shadow-sm ${
+            className={`fixed top-5 right-5 z-50 max-w-md px-5 py-3.5 rounded-2xl shadow-2xl text-xs sm:text-sm font-bold flex items-center justify-between gap-3 border transition-all duration-200 ${
               bannerMsg.type === 'error'
-                ? 'bg-red-50 border-red-200 text-red-800'
-                : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                ? 'bg-red-600 text-white border-red-700 shadow-red-900/20'
+                : bannerMsg.type === 'loading'
+                ? 'bg-[#1E5FA8] text-white border-[#15467E] shadow-blue-900/30'
+                : 'bg-emerald-600 text-white border-emerald-700 shadow-emerald-900/20'
             }`}
           >
-            <div className="flex items-center gap-2">
-              {bannerMsg.type === 'error' ? (
-                <AlertTriangle size={18} />
+            <div className="flex items-center gap-2.5">
+              {bannerMsg.type === 'loading' ? (
+                <RefreshCw size={18} className="animate-spin shrink-0 text-white" />
+              ) : bannerMsg.type === 'error' ? (
+                <AlertTriangle size={18} className="shrink-0 text-white" />
               ) : (
-                <CheckCircle2 size={18} />
+                <CheckCircle2 size={18} className="shrink-0 text-white" />
               )}
-              <span>{bannerMsg.text}</span>
+              <span className="leading-snug">{bannerMsg.text}</span>
             </div>
-            <button type="button" onClick={() => setBannerMsg(null)}>
-              <X size={16} />
-            </button>
+            {bannerMsg.type !== 'loading' && (
+              <button
+                type="button"
+                onClick={() => setBannerMsg(null)}
+                className="p-1 hover:bg-white/20 rounded-lg transition shrink-0 cursor-pointer ml-1"
+              >
+                <X size={15} />
+              </button>
+            )}
           </div>
         )}
 
@@ -4669,10 +4697,20 @@ export default function AdminPanel() {
 
                     <button
                       type="submit"
-                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                      disabled={uploadingPhoto}
+                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] disabled:opacity-60 text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                     >
-                      <Plus size={16} />
-                      <span>Simpan & Upload Foto Referensi</span>
+                      {uploadingPhoto ? (
+                        <>
+                          <RefreshCw size={16} className="animate-spin" />
+                          <span>Mengunggah Foto Referensi...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={16} />
+                          <span>Simpan & Upload Foto Referensi</span>
+                        </>
+                      )}
                     </button>
                   </form>
                 </div>

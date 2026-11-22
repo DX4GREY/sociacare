@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { SociaHeartLogo, StudentAvatar } from '../components/Illustrations';
 import {
@@ -129,10 +129,22 @@ export default function TeacherPortal() {
     base64Data: '',
     preview: '',
   });
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
+  const notificationTimeoutRef = useRef(null);
 
   function showNotification(type, text) {
+    if (notificationTimeoutRef.current) {
+      clearTimeout(notificationTimeoutRef.current);
+      notificationTimeoutRef.current = null;
+    }
     setBannerMsg({ type, text });
-    setTimeout(() => setBannerMsg(null), 4500);
+    if (type !== 'loading') {
+      notificationTimeoutRef.current = setTimeout(() => {
+        setBannerMsg(null);
+        notificationTimeoutRef.current = null;
+      }, 4500);
+    }
   }
 
   function authHeaders() {
@@ -668,12 +680,21 @@ export default function TeacherPortal() {
       showNotification('error', 'Judul foto referensi wajib diisi.');
       return;
     }
+    if (!photoForm.base64Data && !photoForm.fileUrl.trim()) {
+      showNotification('error', 'Pilih file foto dari perangkat Anda atau masukkan URL foto.');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    showNotification('loading', 'Sedang mengunggah foto materi konseling ke sistem...');
+
     try {
       const res = await fetch('/api/admin/photos', {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify(photoForm),
       });
+      const data = await res.json();
       if (res.ok) {
         showNotification('success', 'Materi foto referensi konseling berhasil ditambahkan!');
         setPhotoForm({
@@ -686,10 +707,12 @@ export default function TeacherPortal() {
         });
         await loadAllData();
       } else {
-        showNotification('error', 'Gagal mengunggah foto.');
+        showNotification('error', data.error || 'Gagal mengunggah foto.');
       }
     } catch (err) {
       showNotification('error', err.message);
+    } finally {
+      setUploadingPhoto(false);
     }
   }
 
@@ -854,14 +877,31 @@ export default function TeacherPortal() {
       {/* Toast Notification */}
       {bannerMsg && (
         <div
-          className={`fixed top-4 right-4 z-50 px-5 py-3.5 rounded-2xl shadow-xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all animate-bounce ${
+          className={`fixed top-4 right-4 z-50 px-5 py-3.5 rounded-2xl shadow-xl text-xs sm:text-sm font-bold flex items-center gap-2.5 transition-all ${
             bannerMsg.type === 'error'
-              ? 'bg-red-600 text-white'
-              : 'bg-emerald-600 text-white'
+              ? 'bg-red-600 text-white shadow-red-900/20'
+              : bannerMsg.type === 'loading'
+              ? 'bg-[#1E5FA8] text-white shadow-blue-500/30'
+              : 'bg-emerald-600 text-white shadow-emerald-900/20'
           }`}
         >
-          {bannerMsg.type === 'error' ? <AlertTriangle size={18} /> : <CheckCircle2 size={18} />}
+          {bannerMsg.type === 'loading' ? (
+            <RefreshCw size={18} className="animate-spin shrink-0 text-white" />
+          ) : bannerMsg.type === 'error' ? (
+            <AlertTriangle size={18} className="shrink-0" />
+          ) : (
+            <CheckCircle2 size={18} className="shrink-0" />
+          )}
           <span>{bannerMsg.text}</span>
+          {bannerMsg.type !== 'loading' && (
+            <button
+              type="button"
+              onClick={() => setBannerMsg(null)}
+              className="p-1 hover:bg-white/20 rounded-lg transition shrink-0 cursor-pointer ml-1"
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
       )}
 
@@ -1982,9 +2022,17 @@ export default function TeacherPortal() {
 
                 <button
                   type="submit"
-                  className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white font-extrabold text-xs sm:text-sm py-3 rounded-xl transition shadow-xs cursor-pointer"
+                  disabled={uploadingPhoto}
+                  className="w-full bg-[#1E5FA8] hover:bg-[#15467E] disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm py-3 rounded-xl transition shadow-xs cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Simpan & Hubungkan ke Memori AI
+                  {uploadingPhoto ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      <span>Mengunggah Foto...</span>
+                    </>
+                  ) : (
+                    <span>Simpan & Hubungkan ke Memori AI</span>
+                  )}
                 </button>
               </form>
             </div>
