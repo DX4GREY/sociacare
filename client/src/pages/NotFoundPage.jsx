@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SociaHeartLogo } from '../components/Illustrations';
 import { ArrowLeft, Home } from 'lucide-react';
 
 export default function NotFoundPage() {
+  useEffect(() => {
+    document.title = '404 Halaman Tidak Ditemukan | SociaCare AI';
+  }, []);
   return (
     <div className="w-full min-h-[100dvh] bg-[#F4F9FF] flex flex-col justify-between items-center text-center p-6">
       <header className="w-full max-w-7xl flex items-center justify-between py-4">

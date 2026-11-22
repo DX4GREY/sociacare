@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { SociaHeartLogo } from '../components/Illustrations';
 import { Menu } from 'lucide-react';
 
 export default function ClosingPage() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    document.title = 'Terima Kasih Sudah Bercerita | SociaCare AI';
+  }, []);
 
   return (
     <div className="w-full min-h-[100dvh] bg-gradient-to-b from-[#F6FAFF] via-[#E8F3FC] to-[#CFE5FA] flex flex-col justify-between relative text-center">

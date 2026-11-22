@@ -108,6 +108,15 @@ export default function ChatPage() {
     });
   }, [messages.length, sendingMessage]);
 
+  // Dynamic browser tab title
+  useEffect(() => {
+    if (currentSession?.topic_title) {
+      document.title = `${currentSession.topic_title} — Ruang Konseling | SociaCare AI`;
+    } else {
+      document.title = 'Ruang Konseling AI | SociaCare AI';
+    }
+  }, [currentSession?.topic_title]);
+
   // Load or redirect to active session
   useEffect(() => {
     const saved = localStorage.getItem('sociacare_user');

@@ -59,6 +59,25 @@ export default function ExtrasPage() {
     }
   }, [articleId, extrasData.articles]);
 
+  // Dynamic browser tab title
+  useEffect(() => {
+    if (selectedArticle?.title) {
+      document.title = `${selectedArticle.title} — Artikel Edukasi | SociaCare AI`;
+    } else if (activeTab === 'tips') {
+      document.title = 'Tips & Solusi Sosial Siswa | SociaCare AI';
+    } else if (activeTab === 'articles') {
+      document.title = 'Artikel Bimbingan & Edukasi | SociaCare AI';
+    } else if (activeTab === 'videos') {
+      document.title = 'Video Edukasi Siswa | SociaCare AI';
+    } else if (activeTab === 'counselor') {
+      document.title = 'Hubungi Guru BK & Permohonan Tatap Muka | SociaCare AI';
+    } else if (activeTab === 'history') {
+      document.title = 'Riwayat Percakapan Konseling | SociaCare AI';
+    } else {
+      document.title = 'Fitur Edukasi & Bantuan Siswa | SociaCare AI';
+    }
+  }, [activeTab, selectedArticle?.title]);
+
   function handleTabClick(targetTab) {
     setSelectedArticle(null);
     if (!targetTab) {

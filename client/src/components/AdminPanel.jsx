@@ -229,6 +229,25 @@ export default function AdminPanel() {
     }
   }, [adminToken]);
 
+  // Dynamic browser tab title
+  useEffect(() => {
+    if (!adminToken) {
+      document.title = 'Login Panel Kontrol Administrator | SociaCare';
+    } else {
+      const tabTitles = {
+        server: 'Server & Diagnostik — Panel Admin | SociaCare',
+        ai_config: 'Konfigurasi AI & Gemini — Panel Admin | SociaCare',
+        users: 'Database Siswa — Panel Admin | SociaCare',
+        counseling: 'Sesi Chat & Guru BK — Panel Admin | SociaCare',
+        teachers: 'Manajemen Akun Guru BK — Panel Admin | SociaCare',
+        content: 'Kelola Materi Edukasi — Panel Admin | SociaCare',
+        learning_photos: 'Pembelajaran AI & Foto — Panel Admin | SociaCare',
+        sql: 'SQL Studio — Panel Admin | SociaCare',
+      };
+      document.title = tabTitles[activeTab] || 'Panel Kontrol Administrator | SociaCare';
+    }
+  }, [adminToken, activeTab]);
+
   async function loadPhotos() {
     setLoadingPhotos(true);
     try {

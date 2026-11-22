@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { SociaHeartLogo, StudentAvatar } from '../components/Illustrations';
@@ -30,6 +30,10 @@ export default function HomePage() {
     handleLogoutProfile,
     userSessions,
   } = useApp();
+
+  useEffect(() => {
+    document.title = 'SociaCare AI — Sahabat Konseling & Bimbingan Emosional Siswa';
+  }, []);
 
   async function handleStartCounselingClick(e) {
     if (e) e.preventDefault();

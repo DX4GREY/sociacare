@@ -148,6 +148,23 @@ export default function TeacherPortal() {
     }
   }, [teacherToken]);
 
+  // Dynamic browser tab title
+  useEffect(() => {
+    if (!teacherToken) {
+      document.title = 'Login Portal Guru BK | SociaCare';
+    } else {
+      const tabTitles = {
+        emergency: 'Pusat Gawat Darurat — Portal Guru BK | SociaCare',
+        students: 'Aktivitas & Chat Siswa — Portal Guru BK | SociaCare',
+        requests: 'Permintaan Tatap Muka — Portal Guru BK | SociaCare',
+        articles: 'Manajemen Artikel — Portal Guru BK | SociaCare',
+        videos: 'Manajemen Video — Portal Guru BK | SociaCare',
+        resources: 'Materi Foto & Referensi AI — Portal Guru BK | SociaCare',
+      };
+      document.title = tabTitles[activeTab] || 'Portal Guru BK | SociaCare';
+    }
+  }, [teacherToken, activeTab]);
+
   async function handleTeacherLogin(e) {
     e.preventDefault();
     setLoginError('');

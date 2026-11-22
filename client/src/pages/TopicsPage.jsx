@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { SociaHeartLogo, StudentAvatar } from '../components/Illustrations';
@@ -15,6 +15,10 @@ export default function TopicsPage() {
     syncUserSession,
   } = useApp();
   const [startingTopic, setStartingTopic] = useState(null);
+
+  useEffect(() => {
+    document.title = 'Pilih Topik Konseling | SociaCare AI';
+  }, []);
 
   async function handleStartTopic(topicId) {
     let user = currentUser;
