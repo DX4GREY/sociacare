@@ -1509,12 +1509,53 @@ app.get('/api/admin/users/:id/detail', requireAdmin, async (req, res) => {
       sessions: sessionsRes.rows,
       messages: messagesRes.rows.map((m) => ({
         ...m,
+        text: m.content,
+        message: m.content,
         structured: parseStructured(m.structured_json),
       })),
       counselorRequests: bkRes.rows,
       tokenSummary: tokenRes.rows[0] || { total_tokens: 0, calls: 0 },
       emergencyAlerts: alertsRes.rows,
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint riwayat sesi percakapan siswa (untuk Admin & Portal Guru BK)
+app.get('/api/admin/users/:id/history', requireAdmin, async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    const result = await query(
+      `SELECT s.*,
+        (SELECT COUNT(*) FROM chat_messages m WHERE m.session_id = s.id) AS message_count,
+        (SELECT m.content FROM chat_messages m WHERE m.session_id = s.id ORDER BY m.id DESC LIMIT 1) AS last_message
+       FROM chat_sessions s
+       WHERE s.user_id = $1
+       ORDER BY s.updated_at DESC, s.id DESC`,
+      [userId]
+    );
+    res.json({ ok: true, sessions: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint transkrip pesan dalam sesi tertentu (untuk Admin & Portal Guru BK)
+app.get('/api/admin/sessions/:id/messages', requireAdmin, async (req, res) => {
+  try {
+    const sessionId = Number(req.params.id);
+    const result = await query(
+      `SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY id ASC`,
+      [sessionId]
+    );
+    const messages = result.rows.map((m) => ({
+      ...m,
+      text: m.content,
+      message: m.content,
+      structured: parseStructured(m.structured_json),
+    }));
+    res.json({ ok: true, messages });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

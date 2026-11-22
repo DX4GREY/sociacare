@@ -248,6 +248,7 @@ export default function TeacherPortal() {
   async function handleOpenInspectStudent(student) {
     setInspectStudent(student);
     setSelectedSessionId(null);
+    setStudentSessions([]);
     setChatMessages([]);
     setLoadingChat(true);
 
@@ -259,12 +260,15 @@ export default function TeacherPortal() {
       if (data.sessions) {
         setStudentSessions(data.sessions);
         if (data.sessions.length > 0) {
-          handleSelectSession(data.sessions[0].id);
+          await handleSelectSession(data.sessions[0].id);
+        } else {
+          setLoadingChat(false);
         }
+      } else {
+        setLoadingChat(false);
       }
     } catch (err) {
       showNotification('error', 'Gagal memuat riwayat chat siswa.');
-    } finally {
       setLoadingChat(false);
     }
   }
@@ -2157,7 +2161,7 @@ export default function TeacherPortal() {
                               : 'bg-white text-[#163A5F] border border-[#C5DDF6] rounded-bl-none'
                           }`}
                         >
-                          <p className="whitespace-pre-line">{msg.text || msg.message}</p>
+                          <p className="whitespace-pre-line">{msg.content || msg.text || msg.message}</p>
                           <div
                             className={`text-[10px] mt-1 text-right ${
                               isUser ? 'text-white/70' : 'text-slate-400'
