@@ -857,34 +857,69 @@ app.post('/api/admin/login', (req, res) => {
   });
 });
 
-app.post('/api/teacher/login', (req, res) => {
-  const username = String(req.body?.username || '').trim();
-  const password = String(req.body?.password || '').trim();
-  const expectedTeacherUser = process.env.TEACHER_USERNAME || 'gurubk';
-  const expectedTeacherPass = process.env.TEACHER_PASSWORD || 'gurubk123';
-  const expectedAdminPass = process.env.ADMIN_PASSWORD || 'admin123';
+app.post('/api/teacher/login', async (req, res) => {
+  try {
+    const username = String(req.body?.username || '').trim();
+    const password = String(req.body?.password || '').trim();
 
-  const isTeacherValid =
-    username.toLowerCase() === expectedTeacherUser.toLowerCase() &&
-    password === expectedTeacherPass;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username dan password wajib diisi.' });
+    }
 
-  const isAdminValid =
-    (username.toLowerCase() === 'admin' || username.toLowerCase() === 'administrator') &&
-    password === expectedAdminPass;
+    // 1. Check database teachers table
+    const teacherRes = await query(
+      `SELECT * FROM teachers WHERE LOWER(username) = LOWER($1) AND is_active = 1`,
+      [username]
+    );
 
-  if (!isTeacherValid && !isAdminValid) {
-    addServerLog('WARN', `Percobaan login Guru BK gagal untuk username "${username}".`);
-    return res.status(401).json({ error: 'Username atau Password Guru BK tidak sesuai.' });
+    let activeUser = null;
+    let teacherName = 'Guru BK';
+
+    if (teacherRes.rows.length > 0) {
+      const teacher = teacherRes.rows[0];
+      if (teacher.password === password) {
+        activeUser = teacher.username;
+        teacherName = teacher.name;
+      }
+    }
+
+    // 2. Fallback to process.env or admin credentials
+    if (!activeUser) {
+      const expectedTeacherUser = process.env.TEACHER_USERNAME || 'gurubk';
+      const expectedTeacherPass = process.env.TEACHER_PASSWORD || 'gurubk123';
+      const expectedAdminPass = process.env.ADMIN_PASSWORD || 'admin123';
+
+      if (
+        username.toLowerCase() === expectedTeacherUser.toLowerCase() &&
+        password === expectedTeacherPass
+      ) {
+        activeUser = expectedTeacherUser;
+        teacherName = 'Guru BK (Utama)';
+      } else if (
+        (username.toLowerCase() === 'admin' || username.toLowerCase() === 'administrator') &&
+        password === expectedAdminPass
+      ) {
+        activeUser = 'admin';
+        teacherName = 'Administrator';
+      }
+    }
+
+    if (!activeUser) {
+      addServerLog('WARN', `Percobaan login Guru BK gagal untuk username "${username}".`);
+      return res.status(401).json({ error: 'Username atau Password Guru BK tidak sesuai.' });
+    }
+
+    addServerLog('TEACHER', `Guru BK (${teacherName} / @${activeUser}) berhasil login ke portal bimbingan konseling.`);
+    res.json({
+      ok: true,
+      token: getAdminTokenSecret(),
+      role: 'guru_bk',
+      username: activeUser,
+      name: teacherName,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Gagal memproses login Guru BK.' });
   }
-
-  const activeUser = isTeacherValid ? expectedTeacherUser : 'admin';
-  addServerLog('TEACHER', `Guru BK (${activeUser}) berhasil login ke portal bimbingan konseling.`);
-  res.json({
-    ok: true,
-    token: getAdminTokenSecret(),
-    role: 'guru_bk',
-    username: activeUser,
-  });
 });
 
 app.get('/api/admin/server-stats', requireAdmin, async (req, res) => {
@@ -1547,6 +1582,113 @@ app.delete('/api/admin/counselor-requests/:id', requireAdmin, async (req, res) =
     const reqId = Number(req.params.id);
     await query('DELETE FROM counselor_requests WHERE id = $1', [reqId]);
     addServerLog('ADMIN', `Admin menghapus tiket Guru BK #${reqId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// TEACHER (GURU BK) ACCOUNT MANAGEMENT (BY ADMIN)
+// ==========================================
+app.get('/api/admin/teachers', requireAdmin, async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT id, name, username, password, nip, phone, role, is_active, created_at, updated_at
+       FROM teachers ORDER BY id ASC`
+    );
+    res.json({ teachers: result.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/teachers', requireAdmin, async (req, res) => {
+  try {
+    const name = String(req.body?.name || '').trim().slice(0, 120);
+    const username = String(req.body?.username || '').trim().toLowerCase().slice(0, 60);
+    const password = String(req.body?.password || '').trim();
+    const nip = String(req.body?.nip || '').trim().slice(0, 60);
+    const phone = String(req.body?.phone || '').trim().slice(0, 30);
+    const role = String(req.body?.role || 'guru_bk').trim().slice(0, 30);
+
+    if (!name || !username || !password) {
+      return res.status(400).json({ error: 'Nama, username, dan password Guru BK wajib diisi.' });
+    }
+
+    // Check duplicate username
+    const dupCheck = await query(
+      `SELECT id FROM teachers WHERE LOWER(username) = LOWER($1)`,
+      [username]
+    );
+    if (dupCheck.rows.length > 0) {
+      return res.status(400).json({ error: `Username "${username}" sudah digunakan oleh akun lain.` });
+    }
+
+    await query(
+      `INSERT INTO teachers (name, username, password, nip, phone, role, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [name, username, password, nip, phone, role, 1]
+    );
+
+    addServerLog('ADMIN', `Admin membuat akun Guru BK baru: ${name} (@${username})`);
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/teachers/:id', requireAdmin, async (req, res) => {
+  try {
+    const teacherId = Number(req.params.id);
+    const name = String(req.body?.name || '').trim().slice(0, 120);
+    const username = String(req.body?.username || '').trim().toLowerCase().slice(0, 60);
+    const password = String(req.body?.password || '').trim();
+    const nip = String(req.body?.nip || '').trim().slice(0, 60);
+    const phone = String(req.body?.phone || '').trim().slice(0, 30);
+    const isActive = req.body?.isActive !== undefined ? (Number(req.body.isActive) ? 1 : 0) : 1;
+
+    if (!name || !username) {
+      return res.status(400).json({ error: 'Nama dan username wajib diisi.' });
+    }
+
+    // Check duplicate username on other teachers
+    const dupCheck = await query(
+      `SELECT id FROM teachers WHERE LOWER(username) = LOWER($1) AND id != $2`,
+      [username, teacherId]
+    );
+    if (dupCheck.rows.length > 0) {
+      return res.status(400).json({ error: `Username "${username}" sudah digunakan oleh akun lain.` });
+    }
+
+    if (password) {
+      await query(
+        `UPDATE teachers
+         SET name = $1, username = $2, password = $3, nip = $4, phone = $5, is_active = $6, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $7`,
+        [name, username, password, nip, phone, isActive, teacherId]
+      );
+    } else {
+      await query(
+        `UPDATE teachers
+         SET name = $1, username = $2, nip = $3, phone = $4, is_active = $5, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $6`,
+        [name, username, nip, phone, isActive, teacherId]
+      );
+    }
+
+    addServerLog('ADMIN', `Admin memperbarui akun Guru BK ID #${teacherId} (${name})`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/admin/teachers/:id', requireAdmin, async (req, res) => {
+  try {
+    const teacherId = Number(req.params.id);
+    await query(`DELETE FROM teachers WHERE id = $1`, [teacherId]);
+    addServerLog('ADMIN', `Admin menghapus akun Guru BK ID #${teacherId}`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

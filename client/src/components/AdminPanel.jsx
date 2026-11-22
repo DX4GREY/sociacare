@@ -40,6 +40,10 @@ import {
   Clock,
   Calendar,
   UploadCloud,
+  GraduationCap,
+  EyeOff,
+  Lock,
+  Phone,
 } from 'lucide-react';
 
 function formatBytes(bytes) {
@@ -124,6 +128,21 @@ export default function AdminPanel() {
   const [allBkRequests, setAllBkRequests] = useState([]);
   const [editingBk, setEditingBk] = useState(null);
 
+  // Teachers (Guru BK) Management State
+  const [teachersList, setTeachersList] = useState([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [teacherSearch, setTeacherSearch] = useState('');
+  const [newTeacherForm, setNewTeacherForm] = useState({
+    name: '',
+    username: '',
+    password: '',
+    nip: '',
+    phone: '',
+  });
+  const [editingTeacher, setEditingTeacher] = useState(null);
+  const [showTeacherModal, setShowTeacherModal] = useState(false);
+  const [showPasswordMap, setShowPasswordMap] = useState({});
+
   // SQL Console State
   const [sqlQuery, setSqlQuery] = useState(
     'SELECT id, name, avatar_style, created_at, last_active_at FROM users ORDER BY id DESC;'
@@ -203,6 +222,7 @@ export default function AdminPanel() {
       loadAiSettings();
       loadUsers();
       loadCounselingData();
+      loadTeachers();
       loadContentData();
       loadPhotos();
       loadMemories();
@@ -697,6 +717,87 @@ export default function AdminPanel() {
       if (bkData.requests) setAllBkRequests(bkData.requests);
     } catch (err) {
       console.error('Error loading counseling data:', err);
+    }
+  }
+
+  async function loadTeachers() {
+    setLoadingTeachers(true);
+    try {
+      const res = await fetch('/api/admin/teachers', { headers: adminHeaders() });
+      if (res.status === 401) return handleAdminLogout();
+      const data = await res.json();
+      if (data.teachers) setTeachersList(data.teachers);
+    } catch (err) {
+      console.error('Error loading teachers:', err);
+      showNotification('error', 'Gagal memuat daftar Guru BK.');
+    } finally {
+      setLoadingTeachers(false);
+    }
+  }
+
+  async function handleCreateTeacher(e) {
+    e.preventDefault();
+    if (!newTeacherForm.name.trim() || !newTeacherForm.username.trim() || !newTeacherForm.password.trim()) {
+      showNotification('error', 'Nama, username, dan password Guru BK wajib diisi.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/admin/teachers', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify(newTeacherForm),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', `Akun Guru BK "${newTeacherForm.name}" (@${newTeacherForm.username}) berhasil dibuat!`);
+        setNewTeacherForm({ name: '', username: '', password: '', nip: '', phone: '' });
+        setShowTeacherModal(false);
+        await loadTeachers();
+      } else {
+        showNotification('error', data.error || 'Gagal membuat akun Guru BK.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleUpdateTeacher(e) {
+    e.preventDefault();
+    if (!editingTeacher) return;
+    try {
+      const res = await fetch(`/api/admin/teachers/${editingTeacher.id}`, {
+        method: 'PUT',
+        headers: adminHeaders(),
+        body: JSON.stringify(editingTeacher),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', `Akun Guru BK "${editingTeacher.name}" berhasil diperbarui!`);
+        setEditingTeacher(null);
+        await loadTeachers();
+      } else {
+        showNotification('error', data.error || 'Gagal memperbarui akun Guru BK.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleDeleteTeacher(t) {
+    if (!window.confirm(`Hapus akun Guru BK "${t.name}" (@${t.username})? Tindakan ini tidak dapat dibatalkan.`)) return;
+    try {
+      const res = await fetch(`/api/admin/teachers/${t.id}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        showNotification('success', `Akun Guru BK "${t.name}" berhasil dihapus.`);
+        await loadTeachers();
+      } else {
+        showNotification('error', 'Gagal menghapus akun Guru BK.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
     }
   }
 
@@ -1234,6 +1335,27 @@ export default function AdminPanel() {
               </div>
               <span className="bg-white/20 text-[11px] px-2 py-0.5 rounded-full">
                 {stats?.database?.tables?.chat_sessions ?? allSessions.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('teachers');
+                loadTeachers();
+              }}
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+                activeTab === 'teachers'
+                  ? 'bg-[#1E5FA8] text-white shadow'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <GraduationCap size={18} />
+                <span>Akun Guru BK</span>
+              </div>
+              <span className="bg-sky-400/20 text-sky-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                {teachersList.length} Akun
               </span>
             </button>
 
@@ -2919,6 +3041,414 @@ export default function AdminPanel() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===================================================================
+            TAB: MANAJEMEN AKUN GURU BK & KONSELOR
+           =================================================================== */}
+        {activeTab === 'teachers' && (
+          <div className="space-y-6">
+            <div className="bg-white border border-[#C5DDF6] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <span className="p-2.5 rounded-2xl bg-[#E8F2FC] text-[#1E5FA8]">
+                    <GraduationCap size={26} />
+                  </span>
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-extrabold text-[#102A45]">
+                      Manajemen Akun Guru BK & Konselor
+                    </h1>
+                    <p className="text-xs sm:text-sm text-[#4A6382] mt-0.5">
+                      Admin dapat membuat username dan password tersendiri untuk Guru BK, mengelola data konselor, maupun mereset akses login portal /guru.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowTeacherModal(true)}
+                className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-extrabold text-xs sm:text-sm px-5 py-3 rounded-2xl shadow-lg transition flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+              >
+                <Plus size={18} />
+                <span>+ Buat Akun Guru BK Baru</span>
+              </button>
+            </div>
+
+            {/* Filter & Search */}
+            <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+              <div className="relative w-full sm:max-w-md">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={teacherSearch}
+                  onChange={(e) => setTeacherSearch(e.target.value)}
+                  placeholder="Cari nama, username, atau NIP Guru BK..."
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#C5DDF6] rounded-xl text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-bold text-[#184B78]">
+                <span>Total Guru BK Terdaftar:</span>
+                <span className="bg-[#E8F2FC] text-[#1E5FA8] px-2.5 py-0.5 rounded-full font-extrabold">
+                  {teachersList.length}
+                </span>
+              </div>
+            </div>
+
+            {/* Teacher Cards Grid */}
+            {teachersList.filter((t) => {
+              const q = teacherSearch.toLowerCase().trim();
+              return !q || t.name?.toLowerCase().includes(q) || t.username?.toLowerCase().includes(q) || t.nip?.toLowerCase().includes(q);
+            }).length === 0 ? (
+              <div className="bg-white border border-[#C5DDF6] rounded-2xl p-10 text-center text-slate-400 text-xs sm:text-sm">
+                Belum ada data Guru BK. Klik tombol "+ Buat Akun Guru BK Baru" untuk menambahkan.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {teachersList
+                  .filter((t) => {
+                    const q = teacherSearch.toLowerCase().trim();
+                    return !q || t.name?.toLowerCase().includes(q) || t.username?.toLowerCase().includes(q) || t.nip?.toLowerCase().includes(q);
+                  })
+                  .map((teacher) => {
+                    const isVisible = Boolean(showPasswordMap[teacher.id]);
+                    return (
+                      <div
+                        key={teacher.id}
+                        className="bg-white border border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-5 shadow-2xs space-y-4 transition flex flex-col justify-between"
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-11 h-11 rounded-2xl bg-[#E8F2FC] text-[#1E5FA8] flex items-center justify-center font-extrabold text-lg">
+                                <GraduationCap size={24} />
+                              </div>
+                              <div>
+                                <h3 className="font-extrabold text-sm sm:text-base text-[#163A5F]">
+                                  {teacher.name}
+                                </h3>
+                                <div className="text-xs text-[#4A6382] font-semibold flex items-center gap-1.5 mt-0.5">
+                                  <span>ID #{teacher.id}</span>
+                                  <span>•</span>
+                                  <span className="text-[#1E5FA8] font-bold">@{teacher.username}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <span
+                              className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                                Number(teacher.is_active) === 1
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                              }`}
+                            >
+                              {Number(teacher.is_active) === 1 ? 'Aktif' : 'Nonaktif'}
+                            </span>
+                          </div>
+
+                          <div className="bg-[#F8FBFE] border border-[#E1EEFA] rounded-2xl p-3.5 text-xs space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#4A6382] font-semibold">Username Login:</span>
+                              <code className="bg-white px-2 py-0.5 rounded-md border border-[#C5DDF6] font-mono font-extrabold text-[#163A5F]">
+                                {teacher.username}
+                              </code>
+                            </div>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-[#4A6382] font-semibold">Password:</span>
+                              <div className="flex items-center gap-1.5">
+                                <code className="bg-white px-2 py-0.5 rounded-md border border-[#C5DDF6] font-mono font-bold text-[#163A5F]">
+                                  {isVisible ? teacher.password : '••••••••'}
+                                </code>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setShowPasswordMap((prev) => ({
+                                      ...prev,
+                                      [teacher.id]: !prev[teacher.id],
+                                    }))
+                                  }
+                                  className="text-slate-400 hover:text-[#1E5FA8] p-1 transition cursor-pointer"
+                                  title={isVisible ? 'Sembunyikan Password' : 'Lihat Password'}
+                                >
+                                  {isVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                                </button>
+                              </div>
+                            </div>
+
+                            {teacher.nip && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-[#4A6382] font-semibold">NIP / NUPTK:</span>
+                                <span className="font-semibold text-[#163A5F]">{teacher.nip}</span>
+                              </div>
+                            )}
+
+                            {teacher.phone && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-[#4A6382] font-semibold">No. HP / WA:</span>
+                                <span className="font-semibold text-[#163A5F]">{teacher.phone}</span>
+                              </div>
+                            )}
+
+                            <div className="pt-1 border-t border-[#E1EEFA] text-[10px] text-slate-400">
+                              Dibuat: {teacher.created_at || 'Baru saja'}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="pt-2 border-t border-slate-100 flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTeacher(teacher)}
+                            className="p-2 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer text-xs"
+                            title="Hapus Akun Guru BK"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setEditingTeacher({ ...teacher, password: '' })}
+                            className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Edit3 size={13} />
+                            <span>Edit / Ubah Password</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            {/* MODAL: TAMBAH GURU BK BARU */}
+            {showTeacherModal && (
+              <div
+                className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+                onClick={() => setShowTeacherModal(false)}
+              >
+                <div
+                  className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-4 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-[#F0F7FF] pb-3">
+                    <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-base sm:text-lg">
+                      <GraduationCap size={22} className="text-[#1E5FA8]" />
+                      <span>Buat Akun Guru BK Baru</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowTeacherModal(false)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleCreateTeacher} className="space-y-3.5 text-xs sm:text-sm">
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                        Nama Lengkap Guru BK:
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newTeacherForm.name}
+                        onChange={(e) => setNewTeacherForm({ ...newTeacherForm, name: e.target.value })}
+                        placeholder="Contoh: Dra. Hj. Siti Nurhaliza, M.Pd"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                        Username Login (Huruf kecil / tanpa spasi):
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newTeacherForm.username}
+                        onChange={(e) => setNewTeacherForm({ ...newTeacherForm, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+                        placeholder="Contoh: sitinurhaliza, gurubk2"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                        Password Login Guru BK:
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={newTeacherForm.password}
+                        onChange={(e) => setNewTeacherForm({ ...newTeacherForm, password: e.target.value })}
+                        placeholder="Masukkan password untuk login Guru BK"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                          NIP / NUPTK (Opsional):
+                        </label>
+                        <input
+                          type="text"
+                          value={newTeacherForm.nip}
+                          onChange={(e) => setNewTeacherForm({ ...newTeacherForm, nip: e.target.value })}
+                          placeholder="Contoh: 19800101..."
+                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                          No. HP / WA (Opsional):
+                        </label>
+                        <input
+                          type="text"
+                          value={newTeacherForm.phone}
+                          onChange={(e) => setNewTeacherForm({ ...newTeacherForm, phone: e.target.value })}
+                          placeholder="0812..."
+                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowTeacherModal(false)}
+                        className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                      >
+                        Buat Akun Guru BK
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {/* MODAL: EDIT AKUN GURU BK & GANTI PASSWORD */}
+            {editingTeacher && (
+              <div
+                className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+                onClick={() => setEditingTeacher(null)}
+              >
+                <div
+                  className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-4 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between border-b border-[#F0F7FF] pb-3">
+                    <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-base sm:text-lg">
+                      <Edit3 size={20} className="text-[#1E5FA8]" />
+                      <span>Edit Akun Guru BK #{editingTeacher.id}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditingTeacher(null)}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+
+                  <form onSubmit={handleUpdateTeacher} className="space-y-3.5 text-xs sm:text-sm">
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                        Nama Lengkap:
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editingTeacher.name}
+                        onChange={(e) => setEditingTeacher({ ...editingTeacher, name: e.target.value })}
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                        Username Login:
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={editingTeacher.username}
+                        onChange={(e) => setEditingTeacher({ ...editingTeacher, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                        Password Baru (Kosongkan jika tidak ingin mengubah):
+                      </label>
+                      <input
+                        type="text"
+                        value={editingTeacher.password || ''}
+                        onChange={(e) => setEditingTeacher({ ...editingTeacher, password: e.target.value })}
+                        placeholder="Ketik password baru jika ingin mereset"
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                          NIP / NUPTK:
+                        </label>
+                        <input
+                          type="text"
+                          value={editingTeacher.nip || ''}
+                          onChange={(e) => setEditingTeacher({ ...editingTeacher, nip: e.target.value })}
+                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-[#1E3A5F] mb-1">
+                          Status Akun:
+                        </label>
+                        <select
+                          value={Number(editingTeacher.is_active) === 1 ? '1' : '0'}
+                          onChange={(e) => setEditingTeacher({ ...editingTeacher, is_active: Number(e.target.value) })}
+                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                        >
+                          <option value="1">Aktif (Bisa Login)</option>
+                          <option value="0">Nonaktif (Diblokir)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingTeacher(null)}
+                        className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                      >
+                        Batal
+                      </button>
+                      <button
+                        type="submit"
+                        className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                      >
+                        Simpan Perubahan
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             )}
