@@ -857,6 +857,22 @@ app.post('/api/admin/login', (req, res) => {
   });
 });
 
+app.post('/api/teacher/login', (req, res) => {
+  const password = String(req.body?.password || '').trim();
+  const expectedAdmin = process.env.ADMIN_PASSWORD || 'admin123';
+  const expectedTeacher = process.env.TEACHER_PASSWORD || 'gurubk123';
+  if (password !== expectedTeacher && password !== expectedAdmin) {
+    addServerLog('WARN', 'Percobaan login Guru BK gagal (password salah).');
+    return res.status(401).json({ error: 'Password Guru BK tidak sesuai.' });
+  }
+  addServerLog('TEACHER', 'Guru BK berhasil login ke portal bimbingan konseling.');
+  res.json({
+    ok: true,
+    token: getAdminTokenSecret(),
+    role: 'guru_bk',
+  });
+});
+
 app.get('/api/admin/server-stats', requireAdmin, async (req, res) => {
   try {
     const [

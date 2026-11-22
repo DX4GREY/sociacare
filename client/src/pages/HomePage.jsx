@@ -10,6 +10,7 @@ import {
   LogOut,
   Sparkles,
   MessageSquare,
+  GraduationCap,
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -193,6 +194,16 @@ export default function HomePage() {
                       <span className="hidden sm:inline">Keluar</span>
                     </button>
                   </div>
+
+                  <div className="pt-2 border-t border-[#D5E6F7] flex items-center justify-center">
+                    <Link
+                      to="/guru"
+                      className="w-full inline-flex items-center justify-center gap-2 text-xs font-bold text-[#1E5FA8] hover:text-[#133E6E] transition py-2 px-3 rounded-xl bg-[#F0F7FF] hover:bg-[#E2EEFC] border border-[#C5DDF6]"
+                    >
+                      <GraduationCap size={16} />
+                      <span>Masuk sebagai Guru BK / Konselor</span>
+                    </Link>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -303,6 +314,16 @@ export default function HomePage() {
                       Batal
                     </button>
                   )}
+                </div>
+
+                <div className="pt-3 border-t border-[#D5E6F7] flex items-center justify-center">
+                  <Link
+                    to="/guru"
+                    className="w-full inline-flex items-center justify-center gap-2 text-xs font-bold text-[#1E5FA8] hover:text-[#133E6E] transition py-2.5 px-4 rounded-xl bg-[#F0F7FF] hover:bg-[#E2EEFC] border border-[#C5DDF6]"
+                  >
+                    <GraduationCap size={16} />
+                    <span>Masuk sebagai Guru BK / Konselor</span>
+                  </Link>
                 </div>
               </form>
             )}

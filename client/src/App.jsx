@@ -10,6 +10,7 @@ import ExtrasPage from './pages/ExtrasPage';
 import ClosingPage from './pages/ClosingPage';
 import NotFoundPage from './pages/NotFoundPage';
 import AdminPanel from './components/AdminPanel';
+import TeacherPortal from './pages/TeacherPortal';
 
 export default function App() {
   return (
@@ -36,7 +37,12 @@ export default function App() {
           {/* Halaman Penutup & Apresiasi Sesi */}
           <Route path="/closing" element={<ClosingPage />} />
 
-          {/* Portal Administrator & Guru BK */}
+          {/* Portal Khusus Guru BK & Konselor Sekolah */}
+          <Route path="/guru/*" element={<TeacherPortal />} />
+          <Route path="/guru-bk/*" element={<TeacherPortal />} />
+          <Route path="/bk/*" element={<TeacherPortal />} />
+
+          {/* Master Panel Kontrol Administrator */}
           <Route path="/admin/*" element={<AdminPanel />} />
 
           {/* 404 Not Found Page */}
