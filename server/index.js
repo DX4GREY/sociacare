@@ -883,21 +883,11 @@ app.post('/api/teacher/login', async (req, res) => {
       }
     }
 
-    // 2. Fallback to process.env or admin credentials
-    if (!activeUser) {
-      const expectedTeacherUser = process.env.TEACHER_USERNAME || 'gurubk';
-      const expectedTeacherPass = process.env.TEACHER_PASSWORD || 'gurubk123';
-      const expectedAdminPass = process.env.ADMIN_PASSWORD || 'admin123';
-
+    // 2. Fallback to Master Admin credentials if needed
+    if (!activeUser && process.env.ADMIN_PASSWORD) {
       if (
-        username.toLowerCase() === expectedTeacherUser.toLowerCase() &&
-        password === expectedTeacherPass
-      ) {
-        activeUser = expectedTeacherUser;
-        teacherName = 'Guru BK (Utama)';
-      } else if (
         (username.toLowerCase() === 'admin' || username.toLowerCase() === 'administrator') &&
-        password === expectedAdminPass
+        password === process.env.ADMIN_PASSWORD
       ) {
         activeUser = 'admin';
         teacherName = 'Administrator';

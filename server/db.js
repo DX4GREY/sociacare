@@ -372,20 +372,6 @@ async function seedInitialContentIfEmpty() {
       }
       console.log(`[DB Seed] Seeded ${initialPhotos.length} initial AI reference photos.`);
     }
-
-    // 5. Default Guru BK Account
-    const teacherCountRes = await query(`SELECT COUNT(*) as count FROM teachers`);
-    const teacherCount = Number(teacherCountRes.rows[0]?.count || 0);
-    if (teacherCount === 0) {
-      const defaultUser = process.env.TEACHER_USERNAME || 'gurubk';
-      const defaultPass = process.env.TEACHER_PASSWORD || 'gurubk123';
-      await query(
-        `INSERT INTO teachers (name, username, password, nip, phone, role, is_active)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        ['Guru Bimbingan Konseling (Utama)', defaultUser, defaultPass, '198501012010011001', '081234567890', 'guru_bk', 1]
-      );
-      console.log(`[DB Seed] Seeded default Guru BK account (@${defaultUser})`);
-    }
   } catch (err) {
     console.error('[DB Seed Error]', err.message);
   }

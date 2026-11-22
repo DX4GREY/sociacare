@@ -39,10 +39,10 @@ export default function TeacherPortal() {
     () => localStorage.getItem('sociacare_teacher_token') || ''
   );
   const [teacherUsername, setTeacherUsername] = useState(
-    () => localStorage.getItem('sociacare_teacher_username') || 'gurubk'
+    () => localStorage.getItem('sociacare_teacher_username') || ''
   );
 
-  const [usernameInput, setUsernameInput] = useState('gurubk');
+  const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [loadingLogin, setLoadingLogin] = useState(false);
@@ -762,7 +762,7 @@ export default function TeacherPortal() {
           </div>
 
           <p className="text-xs text-[#4A6382] leading-relaxed">
-            Halaman khusus untuk Guru Bimbingan Konseling (BK) memantau kondisi siswa, meninjau permohonan tatap muka manual, mengelola artikel bacaan & video edukasi, serta menangani situasi darurat siswa.
+            Halaman khusus untuk Guru Bimbingan Konseling (BK) memantau kondisi siswa, meninjau permohonan tatap muka manual, mengelola artikel bacaan & video edukasi, serta menangani situasi darurat siswa. Akun dibuat dan dikelola langsung oleh Administrator.
           </p>
 
           {loginError && (
@@ -781,7 +781,7 @@ export default function TeacherPortal() {
                 required
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
-                placeholder="Masukkan username (default: gurubk)"
+                placeholder="Masukkan username Guru BK"
                 className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-4 py-3 text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
               />
             </div>
@@ -811,7 +811,7 @@ export default function TeacherPortal() {
           </form>
 
           <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-[#4A6382]">
-            <span>Akun default: <code className="font-mono font-bold text-[#163A5F]">gurubk / gurubk123</code></span>
+            <span className="text-[11px] text-slate-500">Hubungi Administrator jika belum memiliki akun.</span>
             <Link
               to="/"
               className="inline-flex items-center gap-1 font-bold text-[#1E5FA8] hover:underline"

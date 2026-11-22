@@ -1173,7 +1173,7 @@ export default function AdminPanel() {
                 autoComplete="current-password"
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="Masukkan ADMIN_PASSWORD (default: admin123)"
+                placeholder="Masukkan Password Administrator"
                 className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-4 py-3 text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
                 required
               />
