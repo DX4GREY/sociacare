@@ -730,9 +730,9 @@ app.post('/api/users/:userId/counselor-requests', async (req, res) => {
     }
 
     await query(
-      `INSERT INTO counselor_requests (user_id, topic_title, preferred_schedule, urgency, message)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [userId, topicTitle, preferredSchedule, urgency, message]
+      `INSERT INTO counselor_requests (user_id, topic_title, preferred_schedule, urgency, message, status, counselor_reply)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [userId, topicTitle, preferredSchedule, urgency, message, 'Menunggu Persetujuan Guru BK', '']
     );
 
     addServerLog('BK', `Pengajuan konseling Guru BK baru dari user #${userId}`);
@@ -858,18 +858,32 @@ app.post('/api/admin/login', (req, res) => {
 });
 
 app.post('/api/teacher/login', (req, res) => {
+  const username = String(req.body?.username || '').trim();
   const password = String(req.body?.password || '').trim();
-  const expectedAdmin = process.env.ADMIN_PASSWORD || 'admin123';
-  const expectedTeacher = process.env.TEACHER_PASSWORD || 'gurubk123';
-  if (password !== expectedTeacher && password !== expectedAdmin) {
-    addServerLog('WARN', 'Percobaan login Guru BK gagal (password salah).');
-    return res.status(401).json({ error: 'Password Guru BK tidak sesuai.' });
+  const expectedTeacherUser = process.env.TEACHER_USERNAME || 'gurubk';
+  const expectedTeacherPass = process.env.TEACHER_PASSWORD || 'gurubk123';
+  const expectedAdminPass = process.env.ADMIN_PASSWORD || 'admin123';
+
+  const isTeacherValid =
+    username.toLowerCase() === expectedTeacherUser.toLowerCase() &&
+    password === expectedTeacherPass;
+
+  const isAdminValid =
+    (username.toLowerCase() === 'admin' || username.toLowerCase() === 'administrator') &&
+    password === expectedAdminPass;
+
+  if (!isTeacherValid && !isAdminValid) {
+    addServerLog('WARN', `Percobaan login Guru BK gagal untuk username "${username}".`);
+    return res.status(401).json({ error: 'Username atau Password Guru BK tidak sesuai.' });
   }
-  addServerLog('TEACHER', 'Guru BK berhasil login ke portal bimbingan konseling.');
+
+  const activeUser = isTeacherValid ? expectedTeacherUser : 'admin';
+  addServerLog('TEACHER', `Guru BK (${activeUser}) berhasil login ke portal bimbingan konseling.`);
   res.json({
     ok: true,
     token: getAdminTokenSecret(),
     role: 'guru_bk',
+    username: activeUser,
   });
 });
 
@@ -1684,6 +1698,50 @@ app.delete('/api/admin/content/articles/:id', requireAdmin, async (req, res) => 
   }
 });
 
+app.put('/api/admin/content/articles/:id', requireAdmin, async (req, res) => {
+  try {
+    const artId = String(req.params.id);
+    const category = String(req.body?.category || 'Umum').trim().slice(0, 80);
+    const title = String(req.body?.title || '').trim().slice(0, 200);
+    const readTime = String(req.body?.readTime || '3 menit').trim().slice(0, 50);
+    const excerpt = String(req.body?.excerpt || '').trim();
+    let contentArray = [];
+
+    if (Array.isArray(req.body?.content)) {
+      contentArray = req.body.content.map((p) => String(p).trim()).filter(Boolean);
+    } else if (typeof req.body?.content === 'string') {
+      contentArray = req.body.content
+        .split('\n\n')
+        .map((p) => p.trim())
+        .filter(Boolean);
+    }
+
+    if (!title || contentArray.length === 0) {
+      return res.status(400).json({ error: 'Judul dan isi artikel wajib diisi.' });
+    }
+
+    const finalExcerpt = excerpt || contentArray[0]?.slice(0, 160) + '...';
+
+    const check = await query(`SELECT id FROM content_articles WHERE id = $1`, [artId]);
+    if (check.rows.length === 0) {
+      await query(
+        `INSERT INTO content_articles (id, category, title, read_time, excerpt, content_json) VALUES ($1, $2, $3, $4, $5, $6)`,
+        [artId, category, title, readTime, finalExcerpt, JSON.stringify(contentArray)]
+      );
+    } else {
+      await query(
+        `UPDATE content_articles SET category = $1, title = $2, read_time = $3, excerpt = $4, content_json = $5 WHERE id = $6`,
+        [category, title, readTime, finalExcerpt, JSON.stringify(contentArray), artId]
+      );
+    }
+
+    addServerLog('ADMIN', `Artikel diperbarui: "${title}" (ID: ${artId})`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 3. VIDEOS
 app.post('/api/admin/content/videos', requireAdmin, async (req, res) => {
   try {
@@ -1737,6 +1795,52 @@ app.delete('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
     const vidId = String(req.params.id);
     await query(`DELETE FROM content_videos WHERE id = $1`, [vidId]);
     addServerLog('ADMIN', `Admin menghapus video ID: ${vidId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
+  try {
+    const vidId = String(req.params.id);
+    const category = String(req.body?.category || 'Bimbingan Sosial').trim().slice(0, 80);
+    const title = String(req.body?.title || '').trim().slice(0, 200);
+    const duration = String(req.body?.duration || '5:00').trim().slice(0, 50);
+    const description = String(req.body?.description || '').trim();
+    const rawYoutube = String(req.body?.youtubeUrlOrId || req.body?.youtubeId || '').trim();
+    const youtubeId = extractYoutubeId(rawYoutube);
+
+    let keyTakeaways = [];
+    if (Array.isArray(req.body?.keyTakeaways)) {
+      keyTakeaways = req.body.keyTakeaways.map((k) => String(k).trim()).filter(Boolean);
+    } else if (typeof req.body?.keyTakeaways === 'string') {
+      keyTakeaways = req.body.keyTakeaways
+        .split('\n')
+        .map((k) => k.replace(/^[•\-\*]\s*/, '').trim())
+        .filter(Boolean);
+    }
+
+    if (!title || !youtubeId) {
+      return res.status(400).json({ error: 'Judul dan Link/ID YouTube wajib diisi.' });
+    }
+
+    const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}`;
+
+    const check = await query(`SELECT id FROM content_videos WHERE id = $1`, [vidId]);
+    if (check.rows.length === 0) {
+      await query(
+        `INSERT INTO content_videos (id, category, title, duration, description, youtube_id, embed_url, key_takeaways_json) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [vidId, category, title, duration, description, youtubeId, embedUrl, JSON.stringify(keyTakeaways)]
+      );
+    } else {
+      await query(
+        `UPDATE content_videos SET category = $1, title = $2, duration = $3, description = $4, youtube_id = $5, embed_url = $6, key_takeaways_json = $7 WHERE id = $8`,
+        [category, title, duration, description, youtubeId, embedUrl, JSON.stringify(keyTakeaways), vidId]
+      );
+    }
+
+    addServerLog('ADMIN', `Video edukasi diperbarui: "${title}" (ID: ${vidId})`);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

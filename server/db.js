@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS counselor_requests (
     preferred_schedule VARCHAR(100) NOT NULL,
     urgency VARCHAR(30) DEFAULT 'normal',
     message TEXT NOT NULL,
-    status VARCHAR(40) DEFAULT 'Menunggu Konfirmasi Guru BK',
-    counselor_reply TEXT DEFAULT 'Permintaan konseling tatap muka kamu telah diterima oleh ruang BK. Guru BK akan menghubungi kamu sesuai jadwal.',
+    status VARCHAR(60) DEFAULT 'Menunggu Persetujuan Guru BK',
+    counselor_reply TEXT DEFAULT '',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

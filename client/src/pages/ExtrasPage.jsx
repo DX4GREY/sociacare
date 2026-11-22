@@ -686,18 +686,36 @@ export default function ExtrasPage() {
                         <span className="font-bold text-[#163A5F] truncate">
                           {req.topic_title}
                         </span>
-                        <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full font-semibold shrink-0">
+                        <span
+                          className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold border shrink-0 ${
+                            req.status?.toLowerCase().includes('disetujui') || req.status === 'scheduled'
+                              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                              : req.status?.toLowerCase().includes('selesai') || req.status === 'completed'
+                              ? 'bg-sky-50 text-sky-800 border-sky-300'
+                              : req.status?.toLowerCase().includes('tolak') || req.status?.toLowerCase().includes('ulang') || req.status === 'rejected'
+                              ? 'bg-rose-50 text-rose-800 border-rose-300'
+                              : 'bg-amber-50 text-amber-800 border-amber-300'
+                          }`}
+                        >
                           {req.status}
                         </span>
                       </div>
                       <p className="text-[#243B55]">{req.message}</p>
                       <div className="text-xs text-[#4A6382]">
-                        Jadwal: {req.preferred_schedule}
+                        Jadwal Yang Diajukan: <span className="font-semibold text-[#184B78]">{req.preferred_schedule}</span>
                       </div>
-                      {req.counselor_reply && (
-                        <div className="mt-1.5 p-2.5 rounded-xl bg-[#EBF4FC] border border-[#C5DDF6] text-xs text-[#163A5F]">
-                          <span className="font-bold">Balasan Guru BK: </span>
-                          {req.counselor_reply}
+                      {req.counselor_reply ? (
+                        <div className="mt-2 p-3 rounded-xl bg-[#EBF4FC] border border-[#BBD8F6] text-xs text-[#163A5F] space-y-1">
+                          <div className="font-bold flex items-center gap-1.5 text-[#184B78]">
+                            <CheckCircle2 size={13} className="text-emerald-600" />
+                            <span>Tanggapan & Jadwal Resmi Guru BK:</span>
+                          </div>
+                          <p className="whitespace-pre-line text-[#243B55] pl-4">{req.counselor_reply}</p>
+                        </div>
+                      ) : (
+                        <div className="mt-2 p-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 flex items-center gap-2">
+                          <Clock size={14} className="shrink-0 text-amber-600" />
+                          <span>Pengajuan telah masuk ke Guru BK dan sedang menunggu konfirmasi/jadwal tatap muka manual.</span>
                         </div>
                       )}
                     </div>
