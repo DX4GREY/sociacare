@@ -24,6 +24,7 @@ import {
   Clock,
   X,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 
 export default function ExtrasPage() {
@@ -48,16 +49,16 @@ export default function ExtrasPage() {
   const [chatInput, setChatInput] = useState('');
 
   // Map route params to active tab
-  const activeTab = tab === 'gurubk' ? 'counselor' : tab || null;
+  const activeTab = articleId ? 'articles' : tab === 'gurubk' ? 'counselor' : tab || null;
 
   useEffect(() => {
-    if (articleId && extrasData.articles.length > 0) {
+    if (articleId && extrasData?.articles?.length > 0) {
       const art = extrasData.articles.find((a) => String(a.id) === String(articleId));
       if (art) setSelectedArticle(art);
     } else if (!articleId) {
       setSelectedArticle(null);
     }
-  }, [articleId, extrasData.articles]);
+  }, [articleId, extrasData?.articles]);
 
   // Dynamic browser tab title
   useEffect(() => {
@@ -350,13 +351,13 @@ export default function ExtrasPage() {
               <button
                 type="button"
                 onClick={() => {
-                  if (selectedArticle) handleBackFromArticle();
+                  if (selectedArticle || articleId) handleBackFromArticle();
                   else handleTabClick(null);
                 }}
                 className="text-xs sm:text-sm font-bold text-[#1E5FA8] flex items-center gap-1.5 hover:underline cursor-pointer"
               >
                 <ArrowLeft size={16} />
-                {selectedArticle
+                {selectedArticle || articleId
                   ? 'Kembali ke Daftar Artikel'
                   : 'Kembali ke Fitur Lainnya'}
               </button>
@@ -379,10 +380,18 @@ export default function ExtrasPage() {
                   {selectedArticle.title}
                 </h3>
                 <div className="space-y-4 text-sm sm:text-base text-[#243B55] leading-relaxed">
-                  {selectedArticle.content.map((p, i) => (
+                  {(Array.isArray(selectedArticle.content)
+                    ? selectedArticle.content
+                    : String(selectedArticle.content || '').split('\n\n')
+                  ).map((p, i) => (
                     <p key={i}>{p}</p>
                   ))}
                 </div>
+              </div>
+            ) : articleId ? (
+              <div className="bg-white border border-[#C5DDF6] rounded-3xl p-12 text-center text-[#1E5FA8] font-bold text-sm flex flex-col items-center justify-center gap-3 shadow-2xs max-w-md mx-auto">
+                <RefreshCw size={24} className="animate-spin text-[#1E5FA8]" />
+                <span>Memuat isi artikel...</span>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

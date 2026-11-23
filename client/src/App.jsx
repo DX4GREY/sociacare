@@ -33,6 +33,7 @@ export default function App() {
           <Route path="/extras" element={<ExtrasPage />} />
           <Route path="/extras/:tab" element={<ExtrasPage />} />
           <Route path="/extras/articles/:articleId" element={<ExtrasPage />} />
+          <Route path="/extras/article/:articleId" element={<ExtrasPage />} />
 
           {/* Halaman Penutup & Apresiasi Sesi */}
           <Route path="/closing" element={<ClosingPage />} />
