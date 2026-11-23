@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { SociaHeartLogo } from '../components/Illustrations';
-import { Menu } from 'lucide-react';
+import { Menu, Heart, ArrowRight, BookOpen, Home, CheckCircle2, Sparkles } from 'lucide-react';
 
 export default function ClosingPage() {
   const navigate = useNavigate();
@@ -11,102 +11,100 @@ export default function ClosingPage() {
   }, []);
 
   return (
-    <div className="w-full min-h-[100dvh] bg-gradient-to-b from-[#F6FAFF] via-[#E8F3FC] to-[#CFE5FA] flex flex-col justify-between relative text-center">
+    <div className="w-full min-h-[100dvh] bg-[#F5F8FC] flex flex-col justify-between text-[#0C2340]">
       {/* Top Header */}
-      <header className="w-full px-5 sm:px-10 lg:px-16 py-4 bg-white/85 backdrop-blur-md border-b border-[#D5E6F7]">
+      <header className="w-full px-5 sm:px-10 lg:px-16 py-4 bg-white/90 backdrop-blur-md border-b border-[#E2EDF8]">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 cursor-pointer">
             <SociaHeartLogo size={36} />
-            <span className="font-extrabold text-[#163A5F] text-lg sm:text-xl">
+            <span className="font-extrabold text-[#0C2340] text-lg sm:text-xl tracking-tight">
               SociaCare AI
             </span>
           </Link>
           <Link
             to="/extras"
-            className="p-2 rounded-xl text-[#2B547E] hover:bg-[#E3EFFC] transition cursor-pointer"
+            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold text-[#0C2340] bg-white hover:bg-[#EBF3FC] border border-[#D1E3F5] transition shadow-soft cursor-pointer"
             title="Fitur Lainnya"
           >
-            <Menu size={24} />
+            <span className="hidden sm:inline">Fitur Lainnya</span>
+            <Menu size={18} className="text-[#1B5299]" />
           </Link>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="p-8 sm:p-16 flex-1 flex flex-col items-center justify-center relative z-10">
-        <div className="relative inline-block">
-          <svg
-            width="32"
-            height="32"
-            viewBox="0 0 28 28"
-            fill="none"
-            className="absolute -left-9 top-1"
-          >
-            <path
-              d="M18 6L10 14M20 14L12 20"
-              stroke="#60A5FA"
-              strokeWidth="2.6"
-              strokeLinecap="round"
-            />
-          </svg>
-          <h2 className="hand-title text-5xl sm:text-6xl md:text-7xl font-bold text-[#15385C] leading-tight">
-            Kamu hebat
-            <br />
-            sudah berani bercerita hari ini! ♡
-          </h2>
+      {/* Main Closing Reflection Sanctuary */}
+      <main className="flex-1 w-full max-w-3xl mx-auto px-5 py-12 md:py-16 flex flex-col items-center justify-center text-center">
+        {/* Soft Heart Emblem */}
+        <div className="w-16 h-16 rounded-full bg-[#EBF3FC] border border-[#D1E3F5] flex items-center justify-center text-[#1B5299] shadow-soft mb-6">
+          <Heart size={28} className="fill-[#1B5299]" />
         </div>
 
-        <div className="mt-10 space-y-1.5">
-          <div className="text-2xl sm:text-3xl font-extrabold text-[#15385C] tracking-tight">
-            SociaCare AI
+        <div className="space-y-3 mb-8">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+            <CheckCircle2 size={14} className="text-emerald-600" />
+            <span>Sesi Selesai dengan Baik</span>
           </div>
-          <div className="hand-title text-2xl sm:text-3xl text-[#244B75]">
-            Selalu ada untukmu ♡
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0C2340] tracking-tight leading-tight">
+            Kamu hebat sudah berani <br />
+            <span className="text-[#1B5299]">bercerita hari ini.</span>
+          </h1>
+
+          <p className="text-sm sm:text-base text-[#3E5771] max-w-lg mx-auto leading-relaxed pt-1">
+            Membuka isi hati dan mengakui rasa cemas bukanlah hal yang mudah. Mengambil langkah pertama untuk bercerita membuktikan bahwa kamu peduli pada kesehatan emosionalmu sendiri.
+          </p>
+        </div>
+
+        {/* Affirmation Note Card */}
+        <div className="w-full bg-white border-2 border-[#D1E3F5] rounded-3xl p-6 sm:p-8 shadow-float text-left mb-8 space-y-4">
+          <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-[#1B5299]">
+            <Sparkles size={16} />
+            <span>Pesan Reflektif untuk Dibawa Pulang</span>
+          </div>
+          <p className="text-xs sm:text-sm text-[#0C2340] leading-relaxed">
+            Perubahan dalam hubungan sosial membutuhkan waktu dan kesabaran. Lakukan satu langkah kecil yang telah kamu diskusikan hari ini, dan ingat bahwa kamu berhak merasa aman, dihargai, dan didengarkan di lingkungan sekolahmu.
+          </p>
+          <div className="pt-3 border-t border-[#E2EDF8] flex items-center justify-between text-xs text-[#64748B]">
+            <span>Pintu SociaCare selalu terbuka untukmu.</span>
+            <span className="hand-title text-base text-[#1B5299] font-bold">Tetap semangat ya! ♡</span>
           </div>
         </div>
 
-        <div className="mt-10 flex flex-wrap items-center justify-center gap-3.5">
+        {/* Action Steps */}
+        <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             type="button"
             onClick={() => navigate('/topics')}
-            className="bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-bold px-7 py-3.5 rounded-full shadow transition cursor-pointer"
+            className="bg-[#1B5299] hover:bg-[#133E75] text-white text-xs sm:text-sm font-bold px-6 py-3.5 rounded-2xl shadow-soft transition flex items-center gap-2 cursor-pointer"
           >
-            Mulai Konseling Baru
+            <span>Mulai Konseling Baru</span>
+            <ArrowRight size={16} />
           </button>
+
           <button
             type="button"
             onClick={() => navigate('/extras')}
-            className="bg-white/90 hover:bg-white text-[#184B78] border border-[#B4D2F2] text-xs sm:text-sm font-bold px-6 py-3.5 rounded-full shadow-2xs transition cursor-pointer"
+            className="bg-white hover:bg-[#F8FBFE] text-[#0C2340] border border-[#D1E3F5] text-xs sm:text-sm font-bold px-6 py-3.5 rounded-2xl shadow-soft transition flex items-center gap-2 cursor-pointer"
           >
-            Fitur Lainnya
+            <BookOpen size={16} className="text-[#1B5299]" />
+            <span>Baca Tips & Artikel Edukasi</span>
           </button>
+
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="bg-white/90 hover:bg-white text-[#184B78] border border-[#B4D2F2] text-xs sm:text-sm font-bold px-6 py-3.5 rounded-full shadow-2xs transition cursor-pointer"
+            className="bg-white hover:bg-[#F8FBFE] text-[#3E5771] hover:text-[#0C2340] border border-[#E2EDF8] text-xs sm:text-sm font-bold px-5 py-3.5 rounded-2xl transition flex items-center gap-1.5 cursor-pointer"
           >
-            Halaman Awal
+            <Home size={15} />
+            <span>Halaman Depan</span>
           </button>
         </div>
       </main>
 
-      {/* Decorative Bottom Wave */}
-      <svg
-        viewBox="0 0 1440 90"
-        fill="none"
-        className="w-full h-16 sm:h-24 shrink-0 pointer-events-none"
-        preserveAspectRatio="none"
-      >
-        <path
-          d="M0 40C280 5 560 75 920 30C1180 5 1320 40 1440 25V90H0V40Z"
-          fill="#B7D8F8"
-          fillOpacity="0.65"
-        />
-        <path
-          d="M0 60C380 25 720 85 1100 45C1280 28 1370 45 1440 55V90H0V60Z"
-          fill="#95C2F2"
-          fillOpacity="0.55"
-        />
-      </svg>
+      {/* Reassuring Footer */}
+      <footer className="w-full py-5 text-center text-xs text-[#64748B] border-t border-[#E2EDF8] bg-white">
+        SociaCare AI • Sahabat setia mendengarkan cerita dan perjalanan sosialmu di sekolah.
+      </footer>
     </div>
   );
 }

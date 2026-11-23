@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { SociaHeartLogo, StudentAvatar } from '../components/Illustrations';
 import {
@@ -62,6 +62,7 @@ function formatChatMessageText(text) {
 export default function ChatPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const {
     currentUser,
@@ -79,6 +80,7 @@ export default function ChatPage() {
   const [chatInput, setChatInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
+  const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [reopenedClosedChat, setReopenedClosedChat] = useState(false);
   const [loadingSession, setLoadingSession] = useState(true);
   const [previewImage, setPreviewImage] = useState(null);
@@ -87,6 +89,7 @@ export default function ChatPage() {
   const loadedSessionIdRef = useRef(null);
   const creatingDefaultRef = useRef(false);
   const isInitialLoad = useRef(true);
+  const autoSentTextRef = useRef(null);
 
   // Auto-scroll on new message or typing change
   useEffect(() => {
@@ -396,6 +399,30 @@ export default function ChatPage() {
     }
   }
 
+  // Auto-send or pre-fill prompt from navigation state (e.g. from ExtrasPage article/video discuss)
+  useEffect(() => {
+    const autoSend = location.state?.autoSendText;
+    if (
+      autoSend &&
+      !loadingSession &&
+      currentSession &&
+      !sendingMessage &&
+      autoSentTextRef.current !== autoSend
+    ) {
+      autoSentTextRef.current = autoSend;
+      navigate(location.pathname, { replace: true, state: {} });
+      handleSendMessage(autoSend);
+    }
+  }, [location.state?.autoSendText, loadingSession, currentSession?.id, sendingMessage]);
+
+  useEffect(() => {
+    const draft = location.state?.initialDraft;
+    if (draft && !chatInput) {
+      setChatInput(draft);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state?.initialDraft]);
+
   const isEmergencyMode = Boolean(
     currentUser?.is_emergency === 1 ||
       currentSession?.is_emergency === 1 ||
@@ -418,7 +445,7 @@ export default function ChatPage() {
   return (
     <div
       className={`w-full h-[100dvh] flex flex-col lg:flex-row overflow-hidden transition-colors duration-500 ${
-        isEmergencyMode ? 'bg-red-50 text-red-950' : 'bg-[#F4F9FF] text-[#1E2F47]'
+        isEmergencyMode ? 'bg-red-50 text-red-950' : 'bg-[#F5F8FC] text-[#0C2340]'
       }`}
     >
       {/* DESKTOP LEFT SIDEBAR */}
@@ -426,7 +453,7 @@ export default function ChatPage() {
         className={`hidden lg:flex lg:w-80 xl:w-96 h-full flex-col justify-between p-6 shrink-0 transition-colors duration-500 ${
           isEmergencyMode
             ? 'bg-gradient-to-b from-red-950 via-red-900 to-red-950 border-r border-red-800 text-white'
-            : 'bg-white border-r border-[#D5E6F7]'
+            : 'bg-white border-r border-[#E2EDF8]'
         }`}
       >
         <div className="space-y-6 overflow-y-auto pr-1 chat-scroll">
@@ -434,14 +461,14 @@ export default function ChatPage() {
           <Link
             to="/"
             className={`flex items-center gap-3 cursor-pointer pb-4 border-b ${
-              isEmergencyMode ? 'border-red-800' : 'border-[#E6F1FC]'
+              isEmergencyMode ? 'border-red-800' : 'border-[#E2EDF8]'
             }`}
           >
             <SociaHeartLogo size={36} />
             <div>
               <div
-                className={`font-extrabold text-lg leading-tight ${
-                  isEmergencyMode ? 'text-white' : 'text-[#163A5F]'
+                className={`font-extrabold text-lg leading-tight tracking-tight ${
+                  isEmergencyMode ? 'text-white' : 'text-[#0C2340]'
                 }`}
               >
                 SociaCare AI
@@ -471,7 +498,7 @@ export default function ChatPage() {
               className={`p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${
                 isEmergencyMode
                   ? 'bg-red-900/60 border-red-700 text-white'
-                  : 'bg-[#EBF4FD] border-[#C5DDF6] text-[#163A5F]'
+                  : 'bg-[#F8FBFE] border-[#D1E3F5] text-[#0C2340]'
               }`}
             >
               <div className="flex items-center gap-3 min-w-0">
@@ -482,7 +509,7 @@ export default function ChatPage() {
                 <div className="min-w-0">
                   <div
                     className={`text-[10px] font-bold uppercase tracking-wider ${
-                      isEmergencyMode ? 'text-red-300' : 'text-[#4A6382]'
+                      isEmergencyMode ? 'text-red-300' : 'text-[#64748B]'
                     }`}
                   >
                     Profil Siswa
@@ -496,7 +523,7 @@ export default function ChatPage() {
                 type="button"
                 onClick={() => navigate('/')}
                 className={`text-xs font-bold hover:underline shrink-0 cursor-pointer ${
-                  isEmergencyMode ? 'text-red-200' : 'text-[#1E5FA8]'
+                  isEmergencyMode ? 'text-red-200' : 'text-[#1B5299]'
                 }`}
               >
                 Ganti
@@ -510,13 +537,13 @@ export default function ChatPage() {
               className={`p-4 rounded-2xl border space-y-2.5 ${
                 isEmergencyMode
                   ? 'bg-red-900/40 border-red-700 text-white'
-                  : 'bg-[#F2F8FF] border-[#C5DDF6] text-[#163A5F]'
+                  : 'bg-[#F0F5FA] border-[#D1E3F5] text-[#0C2340]'
               }`}
             >
               <div className="flex items-center justify-between">
                 <span
                   className={`text-[11px] font-bold uppercase tracking-wider ${
-                    isEmergencyMode ? 'text-red-300' : 'text-[#4A6382]'
+                    isEmergencyMode ? 'text-red-300' : 'text-[#64748B]'
                   }`}
                 >
                   Fokus Topik Sesi
@@ -527,7 +554,7 @@ export default function ChatPage() {
                       ? 'bg-emerald-100 text-emerald-800'
                       : isEmergencyMode
                       ? 'bg-red-700 text-white animate-pulse'
-                      : 'bg-[#DCEBFA] text-[#1E5FA8]'
+                      : 'bg-[#EBF3FC] text-[#1B5299]'
                   }`}
                 >
                   {isConversationClosed
@@ -542,7 +569,7 @@ export default function ChatPage() {
               </div>
               <div
                 className={`text-xs leading-relaxed ${
-                  isEmergencyMode ? 'text-red-200' : 'text-[#4A6382]'
+                  isEmergencyMode ? 'text-red-200' : 'text-[#3E5771]'
                 }`}
               >
                 {currentSession.topic_prompt}
@@ -558,11 +585,11 @@ export default function ChatPage() {
               className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer border ${
                 isEmergencyMode
                   ? 'bg-red-900/70 hover:bg-red-800 text-white border-red-700'
-                  : 'bg-[#EBF4FD] hover:bg-[#DCEBFA] text-[#163A5F] border-[#B8D4F2]'
+                  : 'bg-[#EBF3FC] hover:bg-[#D8EAF9] text-[#0C2340] border-[#D1E3F5]'
               }`}
             >
               <span className="flex items-center gap-2">
-                <PlusCircle size={15} />
+                <PlusCircle size={15} className="text-[#1B5299]" />
                 Pilih Topik Baru
               </span>
               <span className="text-[10px] font-extrabold">→</span>
@@ -573,14 +600,14 @@ export default function ChatPage() {
               className={`w-full py-2.5 px-3.5 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer border ${
                 isEmergencyMode
                   ? 'bg-red-900/50 hover:bg-red-800 text-white border-red-700'
-                  : 'bg-white hover:bg-[#F2F7FC] text-[#244B75] border-[#D5E6F7]'
+                  : 'bg-white hover:bg-[#F5F8FC] text-[#0C2340] border-[#E2EDF8]'
               }`}
             >
               <span className="flex items-center gap-2">
-                <Grid size={15} />
+                <Grid size={15} className="text-[#1B5299]" />
                 Buka Fitur Lainnya
               </span>
-              <span className="text-[10px] font-semibold">Tips • BK</span>
+              <span className="text-[10px] font-semibold text-[#64748B]">Tips • BK</span>
             </button>
           </div>
 
@@ -588,7 +615,7 @@ export default function ChatPage() {
           <div className="space-y-2 pt-2">
             <div
               className={`text-xs font-extrabold flex items-center justify-between ${
-                isEmergencyMode ? 'text-red-300' : 'text-[#4A6382]'
+                isEmergencyMode ? 'text-red-300' : 'text-[#64748B]'
               }`}
             >
               <span>Riwayat Sesi Tersimpan ({userSessions.length})</span>
@@ -599,7 +626,7 @@ export default function ChatPage() {
                   className={`text-xs p-3 rounded-xl border text-center ${
                     isEmergencyMode
                       ? 'border-red-800 text-red-300'
-                      : 'border-[#E6F1FC] text-[#7B96B2]'
+                      : 'border-[#E2EDF8] text-[#94A3B8]'
                   }`}
                 >
                   Belum ada sesi tersimpan.
@@ -615,10 +642,10 @@ export default function ChatPage() {
                         isCurrent
                           ? isEmergencyMode
                             ? 'bg-red-800 text-white font-bold border-red-500'
-                            : 'bg-[#1E5FA8] text-white font-bold border-[#1E5FA8]'
+                            : 'bg-[#1B5299] text-white font-bold border-[#1B5299] shadow-soft'
                           : isEmergencyMode
                           ? 'bg-red-950/40 hover:bg-red-900 text-red-200 border-red-900'
-                          : 'bg-white hover:bg-[#EBF4FC] text-[#163A5F] border-[#E6F1FC]'
+                          : 'bg-white hover:bg-[#F5F8FC] text-[#0C2340] border-[#E2EDF8]'
                       }`}
                     >
                       <div className="min-w-0 flex-1 truncate">
@@ -629,7 +656,7 @@ export default function ChatPage() {
                               ? 'text-blue-100'
                               : isEmergencyMode
                               ? 'text-red-300'
-                              : 'text-[#7B96B2]'
+                              : 'text-[#64748B]'
                           }`}
                         >
                           <Clock size={10} />
@@ -661,7 +688,7 @@ export default function ChatPage() {
         {/* Bottom Sidebar Action (Logout) */}
         <div
           className={`pt-4 border-t flex items-center justify-between ${
-            isEmergencyMode ? 'border-red-800' : 'border-[#E6F1FC]'
+            isEmergencyMode ? 'border-red-800' : 'border-[#E2EDF8]'
           }`}
         >
           <button
@@ -673,7 +700,7 @@ export default function ChatPage() {
             className={`flex items-center gap-2 text-xs font-bold transition cursor-pointer ${
               isEmergencyMode
                 ? 'text-red-300 hover:text-white'
-                : 'text-[#4A6382] hover:text-red-600'
+                : 'text-[#64748B] hover:text-red-600'
             }`}
           >
             <LogOut size={15} />
@@ -681,7 +708,7 @@ export default function ChatPage() {
           </button>
           <span
             className={`text-[10px] ${
-              isEmergencyMode ? 'text-red-400' : 'text-[#7B96B2]'
+              isEmergencyMode ? 'text-red-400' : 'text-[#94A3B8]'
             }`}
           >
             SociaCare v1.0
@@ -693,21 +720,21 @@ export default function ChatPage() {
       <div className="flex-1 flex flex-col h-full min-w-0 min-h-0 relative">
         {/* Chat Header */}
         <header
-          className={`flex items-center justify-between px-4 sm:px-8 lg:px-10 py-3.5 border-b shrink-0 relative z-20 transition-colors duration-500 ${
+          className={`flex items-center justify-between px-4 sm:px-8 lg:px-10 py-3.5 border-b shrink-0 relative z-20 transition-colors duration-500 shadow-soft ${
             isEmergencyMode
               ? 'bg-gradient-to-r from-red-900 via-red-700 to-red-800 border-red-950 text-white shadow-md'
-              : 'bg-white/95 border-[#D5E6F7]'
+              : 'bg-white/95 backdrop-blur-md border-[#E2EDF8]'
           }`}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <Link to="/topics" className="lg:hidden p-1.5 -ml-1 text-[#2B547E] hover:bg-[#E3EFFC] rounded-lg">
+            <Link to="/topics" className="lg:hidden p-1.5 -ml-1 text-[#3E5771] hover:bg-[#EBF3FC] rounded-lg">
               <ArrowLeft size={20} />
             </Link>
             <SociaHeartLogo size={36} className="shrink-0 lg:hidden" />
             <div className="leading-tight min-w-0">
               <div
-                className={`font-extrabold text-base sm:text-lg truncate flex items-center gap-2 ${
-                  isEmergencyMode ? 'text-white' : 'text-[#163A5F]'
+                className={`font-extrabold text-base sm:text-lg truncate flex items-center gap-2 tracking-tight ${
+                  isEmergencyMode ? 'text-white' : 'text-[#0C2340]'
                 }`}
               >
                 {isEmergencyMode && (
@@ -732,14 +759,28 @@ export default function ChatPage() {
                 <span>
                   {isEmergencyMode
                     ? 'Mode Perlindungan Gawat Darurat Aktif • Admin & Konselor Diberitahu'
-                    : 'SociaCare AI • Online'}
+                    : 'SociaCare AI • Sahabat Konseling Aktif'}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Right Menu Action + Close Conversation Button */}
-          <div className="flex items-center gap-2 relative">
+          <div className="flex items-center gap-1.5 sm:gap-2 relative">
+            {/* Mobile History Drawer Button */}
+            <button
+              type="button"
+              onClick={() => setMobileDrawerOpen(true)}
+              className={`lg:hidden p-2 rounded-xl transition cursor-pointer ${
+                isEmergencyMode
+                  ? 'text-white hover:bg-red-800'
+                  : 'text-[#3E5771] hover:bg-[#EBF3FC]'
+              }`}
+              title="Riwayat Sesi Konseling"
+            >
+              <Clock size={19} />
+            </button>
+
             {!isConversationClosed && (
               <button
                 type="button"
@@ -747,10 +788,10 @@ export default function ChatPage() {
                 onClick={() =>
                   handleSendMessage('Saya ingin menutup pembicaraan ini, terima kasih.')
                 }
-                className={`text-xs font-bold px-3.5 py-2 rounded-full border flex items-center gap-1.5 transition cursor-pointer ${
+                className={`text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl border flex items-center gap-1.5 transition cursor-pointer ${
                   isEmergencyMode
                     ? 'bg-red-950/60 hover:bg-red-950 text-white border-red-400'
-                    : 'bg-[#F0F7FF] hover:bg-[#1E5FA8] text-[#184B78] hover:text-white border-[#B8D4F2]'
+                    : 'bg-[#F0F5FA] hover:bg-[#1B5299] text-[#1B5299] hover:text-white border-[#D1E3F5]'
                 }`}
                 title="Minta AI Menutup Pembicaraan"
               >
@@ -765,11 +806,11 @@ export default function ChatPage() {
               className={`p-2 rounded-xl transition cursor-pointer ${
                 isEmergencyMode
                   ? 'text-white hover:bg-red-800'
-                  : 'text-[#2B547E] hover:bg-[#E3EFFC]'
+                  : 'text-[#3E5771] hover:bg-[#EBF3FC]'
               }`}
               title="Menu Opsi"
             >
-              <MoreVertical size={22} />
+              <MoreVertical size={20} />
             </button>
 
             {chatMenuOpen && (
@@ -885,26 +926,26 @@ export default function ChatPage() {
         <div
           ref={messagesContainerRef}
           className={`flex-1 overflow-y-auto min-h-0 px-4 sm:px-8 lg:px-14 py-6 chat-scroll ${
-            isEmergencyMode ? 'bg-red-50/50' : 'bg-[#F8FBFF]'
+            isEmergencyMode ? 'bg-red-50/50' : 'bg-[#F5F8FC]'
           }`}
         >
           <div className="max-w-4xl mx-auto space-y-6">
             {/* Initial Welcome Banner inside Workspace */}
             <div
-              className={`rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 border ${
+              className={`rounded-2xl p-4 sm:p-5 flex items-start gap-3.5 border shadow-soft ${
                 isEmergencyMode
                   ? 'bg-red-100 border-red-300 text-red-950'
-                  : 'bg-white border-[#D5E6F7] text-[#1E3A5F]'
+                  : 'bg-white border-[#D1E3F5] text-[#0C2340]'
               }`}
             >
               <SociaHeartLogo size={36} className="shrink-0 mt-0.5" />
               <div className="text-xs sm:text-sm leading-relaxed space-y-1">
-                <div className="font-extrabold text-sm sm:text-base">
+                <div className="font-extrabold text-sm sm:text-base text-[#0C2340]">
                   {currentUser ? `Halo, ${currentUser.name}! ` : 'Halo! '}
                   Ruang Konseling SociaCare AI Siap Mendengarkan
                 </div>
                 <p
-                  className={isEmergencyMode ? 'text-red-900' : 'text-[#4A6382]'}
+                  className={isEmergencyMode ? 'text-red-900' : 'text-[#3E5771]'}
                 >
                   Ceritakan apa yang sedang terjadi, bagaimana perasaanmu, atau
                   hal apa yang membuatmu bingung. Semua cerita kamu dijaga
@@ -914,8 +955,8 @@ export default function ChatPage() {
             </div>
 
             {loadingSession && (
-              <div className="text-center py-8 text-xs text-[#4A6382] flex items-center justify-center gap-2">
-                <Sparkles size={16} className="animate-spin text-[#1E5FA8]" />
+              <div className="text-center py-8 text-xs text-[#64748B] flex items-center justify-center gap-2">
+                <Sparkles size={16} className="animate-spin text-[#1B5299]" />
                 <span>Memuat sesi percakapan...</span>
               </div>
             )}
@@ -935,10 +976,10 @@ export default function ChatPage() {
                     className="flex items-start justify-end gap-3"
                   >
                     <div
-                      className={`rounded-2xl rounded-tr-sm px-4 sm:px-5 py-3.5 text-xs sm:text-sm md:text-base max-w-[85%] sm:max-w-[75%] leading-relaxed shadow-2xs ${
+                      className={`rounded-2xl rounded-tr-xs px-4 sm:px-5 py-3.5 text-xs sm:text-sm md:text-base max-w-[85%] sm:max-w-[75%] leading-relaxed shadow-soft ${
                         isEmergencyMode
                           ? 'bg-red-700 text-white font-medium'
-                          : 'bg-[#1E5FA8] text-white font-medium'
+                          : 'bg-[#1B5299] text-white font-medium'
                       }`}
                     >
                       {/* Message Content (Dynamic formatting / Markdown support) */}
@@ -964,10 +1005,10 @@ export default function ChatPage() {
                   <SociaHeartLogo size={36} className="shrink-0 mt-0.5" />
                   <div className="flex-1 space-y-3 max-w-[88%] sm:max-w-[76%]">
                     <div
-                      className={`bg-white rounded-2xl rounded-tl-sm p-4 sm:p-5 text-xs sm:text-sm md:text-base leading-relaxed shadow-2xs space-y-3.5 border-2 ${
+                      className={`bg-white rounded-2xl rounded-tl-xs p-5 sm:p-6 text-xs sm:text-sm md:text-base leading-relaxed shadow-soft space-y-4 border ${
                         struct.isEmergency || isEmergencyMode
                           ? 'border-red-500 text-red-950'
-                          : 'border-[#CFE3F8] text-[#1E3A5F]'
+                          : 'border-[#D1E3F5] text-[#0C2340]'
                       }`}
                     >
                       {/* AI Emergency Warning Alert Box inside Bubble */}
@@ -1010,17 +1051,17 @@ export default function ChatPage() {
                             {struct.checklist.map((item, cIdx) => (
                               <div
                                 key={cIdx}
-                                className={`flex items-start gap-2.5 ${
+                                className={`flex items-start gap-3 p-2.5 rounded-xl border ${
                                   struct.isEmergency || isEmergencyMode
-                                    ? 'text-red-950'
-                                    : 'text-[#1E3A5F]'
+                                    ? 'bg-red-50/70 border-red-200 text-red-950'
+                                    : 'bg-[#F8FBFE] border-[#E2EDF8] text-[#0C2340]'
                                 }`}
                               >
                                 <span
                                   className={`w-5 h-5 rounded-full text-white flex items-center justify-center shrink-0 mt-0.5 shadow-2xs ${
                                     struct.isEmergency || isEmergencyMode
                                       ? 'bg-red-600'
-                                      : 'bg-[#2563EB]'
+                                      : 'bg-[#1B5299]'
                                   }`}
                                 >
                                   <Check size={12} strokeWidth={3} />
@@ -1033,13 +1074,13 @@ export default function ChatPage() {
                           </div>
                         )}
 
-                      {/* Yellow Lightbulb "Tips Tambahan" Box */}
+                      {/* Gentle Amber Lightbulb "Tips Tambahan" Box */}
                       {struct.tipBox && struct.tipBox.text && (
                         <div
-                          className={`rounded-xl p-3.5 sm:p-4 flex items-start gap-3 border ${
+                          className={`rounded-2xl p-4 flex items-start gap-3 border shadow-2xs ${
                             struct.isEmergency || isEmergencyMode
                               ? 'bg-red-50 border-red-200'
-                              : 'bg-[#F0F7FF] border-[#BBD7F6]'
+                              : 'bg-[#FFF8EE] border-[#FDE68A]'
                           }`}
                         >
                           <span className="text-xl leading-none shrink-0 mt-0.5">
@@ -1050,16 +1091,16 @@ export default function ChatPage() {
                               className={`font-extrabold ${
                                 struct.isEmergency || isEmergencyMode
                                   ? 'text-red-900'
-                                  : 'text-[#163A5F]'
+                                  : 'text-[#92400E]'
                               }`}
                             >
                               {struct.tipBox.title || 'Tips Tambahan:'}
                             </div>
                             <p
-                              className={`mt-0.5 ${
+                              className={`mt-1 font-medium ${
                                 struct.isEmergency || isEmergencyMode
                                   ? 'text-red-800'
-                                  : 'text-[#2B4C6F]'
+                                  : 'text-[#78350F]'
                               }`}
                             >
                               {struct.tipBox.text}
@@ -1157,17 +1198,17 @@ export default function ChatPage() {
                     {isLastAiMessage &&
                       Array.isArray(struct.quickReplies) &&
                       struct.quickReplies.length > 0 && (
-                        <div className="flex flex-wrap gap-2 pt-0.5">
+                        <div className="flex flex-wrap gap-2 pt-1">
                           {struct.quickReplies.map((qr, qIdx) => (
                             <button
                               key={qIdx}
                               type="button"
                               disabled={sendingMessage}
                               onClick={() => handleSendMessage(qr)}
-                              className={`font-bold text-xs sm:text-sm px-4 py-2 rounded-full transition shadow-2xs cursor-pointer border ${
+                              className={`font-bold text-xs sm:text-sm px-4 py-2 rounded-full transition shadow-soft cursor-pointer border ${
                                 isEmergencyMode
                                   ? 'bg-red-600 hover:bg-red-700 text-white border-red-700'
-                                  : 'bg-[#E3EFFC] hover:bg-[#1E5FA8] text-[#184B78] hover:text-white border-[#B4D2F2]'
+                                  : 'bg-white hover:bg-[#1B5299] text-[#1B5299] hover:text-white border-[#D1E3F5]'
                               }`}
                             >
                               {qr}
@@ -1184,19 +1225,19 @@ export default function ChatPage() {
               <div className="flex items-center gap-3">
                 <SociaHeartLogo size={34} />
                 <div
-                  className={`bg-white border rounded-2xl px-4 py-3 text-xs sm:text-sm flex items-center gap-2 shadow-2xs ${
+                  className={`bg-white border rounded-2xl px-4 py-3 text-xs sm:text-sm flex items-center gap-2 shadow-soft ${
                     isEmergencyMode
                       ? 'border-red-300 text-red-800'
-                      : 'border-[#CFE3F8] text-[#4A6382]'
+                      : 'border-[#D1E3F5] text-[#64748B]'
                   }`}
                 >
                   <Sparkles
                     size={16}
                     className={`animate-spin ${
-                      isEmergencyMode ? 'text-red-600' : 'text-[#1E5FA8]'
+                      isEmergencyMode ? 'text-red-600' : 'text-[#1B5299]'
                     }`}
                   />
-                  <span>SociaCare AI sedang mengetik...</span>
+                  <span>SociaCare AI sedang merumuskan tanggapan...</span>
                 </div>
               </div>
             )}
@@ -1205,15 +1246,15 @@ export default function ChatPage() {
 
         {/* Bottom Input Bar OR Closed Conversation State */}
         <div
-          className={`px-4 sm:px-8 lg:px-14 py-3.5 sm:py-4 border-t shrink-0 transition-colors duration-500 ${
+          className={`px-3 sm:px-8 lg:px-14 py-3 sm:py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] border-t shrink-0 transition-colors duration-500 shadow-soft ${
             isEmergencyMode
               ? 'bg-red-100/90 border-red-300'
-              : 'bg-white/95 border-[#D5E6F7]'
+              : 'bg-white/95 backdrop-blur-md border-[#E2EDF8]'
           }`}
         >
           {isConversationClosed ? (
-            <div className="max-w-4xl mx-auto bg-[#F0F8FF] border border-[#B8D4F2] rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-[#163A5F]">
+            <div className="max-w-4xl mx-auto bg-[#F8FBFE] border border-[#D1E3F5] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-soft">
+              <div className="flex items-center gap-2.5 text-xs sm:text-sm font-bold text-[#0C2340]">
                 <CheckCircle2 size={20} className="text-emerald-600 shrink-0" />
                 <span>
                   Sesi pembicaraan ini telah ditutup oleh SociaCare AI. Terima kasih sudah berbagi cerita hari ini!
@@ -1223,21 +1264,21 @@ export default function ChatPage() {
                 <button
                   type="button"
                   onClick={() => navigate('/closing')}
-                  className="bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs font-bold px-4 py-2 rounded-full transition cursor-pointer"
+                  className="bg-[#1B5299] hover:bg-[#133E75] text-white text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer shadow-soft"
                 >
                   Pesan Penutup 💙
                 </button>
                 <button
                   type="button"
                   onClick={() => navigate('/topics')}
-                  className="bg-white hover:bg-[#E6F1FC] text-[#184B78] border border-[#B8D4F2] text-xs font-bold px-4 py-2 rounded-full transition cursor-pointer"
+                  className="bg-white hover:bg-[#F0F5FA] text-[#0C2340] border border-[#D1E3F5] text-xs font-bold px-4 py-2 rounded-xl transition cursor-pointer"
                 >
                   + Topik Baru
                 </button>
                 <button
                   type="button"
                   onClick={() => setReopenedClosedChat(true)}
-                  className="text-xs font-bold text-[#4A6382] hover:text-[#163A5F] px-2.5 py-1.5 underline cursor-pointer"
+                  className="text-xs font-bold text-[#64748B] hover:text-[#0C2340] px-2 py-1.5 underline cursor-pointer"
                 >
                   Buka Lagi
                 </button>
@@ -1249,7 +1290,7 @@ export default function ChatPage() {
                 e.preventDefault();
                 handleSendMessage();
               }}
-              className="max-w-4xl mx-auto flex items-center gap-3"
+              className="max-w-4xl mx-auto flex items-center gap-2.5 sm:gap-3"
             >
               <input
                 type="text"
@@ -1259,23 +1300,23 @@ export default function ChatPage() {
                   sendingMessage
                     ? 'SociaCare AI sedang merumuskan balasan...'
                     : isEmergencyMode
-                    ? 'Ceritakan apa yang kamu rasakan saat ini, kami mendengarkanmu...'
-                    : 'Ketik pesanmu di sini...'
+                    ? 'Ceritakan apa yang kamu rasakan saat ini...'
+                    : 'Ketik ceritamu di sini...'
                 }
                 disabled={sendingMessage}
-                className={`flex-1 bg-white border rounded-full px-5 py-3 text-xs sm:text-sm md:text-base focus:outline-none ${
+                className={`flex-1 bg-[#F5F8FC] border rounded-2xl px-4 sm:px-5 py-3 sm:py-3.5 text-base sm:text-sm text-[#0C2340] placeholder-[#94A3B8] focus:bg-white focus:outline-none transition shadow-2xs ${
                   isEmergencyMode
                     ? 'border-red-400 text-red-950 placeholder-red-400 focus:border-red-700'
-                    : 'bg-[#F2F7FD] border-[#C5DDF6] text-[#163A5F] placeholder-[#7B96B2] focus:border-[#1E5FA8]'
+                    : 'border-[#D1E3F5] text-[#0C2340] placeholder-[#94A3B8] focus:border-[#1B5299]'
                 }`}
               />
               <button
                 type="submit"
                 disabled={!chatInput.trim() || sendingMessage}
-                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full disabled:opacity-50 text-white flex items-center justify-center shrink-0 shadow transition cursor-pointer ${
+                className={`w-11 h-11 sm:w-12 sm:h-12 rounded-2xl disabled:opacity-50 text-white flex items-center justify-center shrink-0 shadow-soft transition cursor-pointer ${
                   isEmergencyMode
                     ? 'bg-red-600 hover:bg-red-700'
-                    : 'bg-[#1E5FA8] hover:bg-[#15467E]'
+                    : 'bg-[#1B5299] hover:bg-[#133E75]'
                 }`}
                 title="Kirim Pesan"
               >
@@ -1285,6 +1326,162 @@ export default function ChatPage() {
           )}
         </div>
       </div>
+
+      {/* MOBILE SESSIONS & PROFILE DRAWER (Slide-over for phones) */}
+      {mobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
+          {/* Drawer Content */}
+          <div className="relative w-full max-w-xs bg-white h-full flex flex-col justify-between p-5 z-10 shadow-2xl animate-in slide-in-from-left duration-200">
+            <div className="space-y-5 overflow-y-auto pr-1 chat-scroll">
+              <div className="flex items-center justify-between pb-3 border-b border-[#E2EDF8]">
+                <div className="flex items-center gap-2.5">
+                  <SociaHeartLogo size={32} />
+                  <div>
+                    <div className="font-extrabold text-base text-[#0C2340]">SociaCare AI</div>
+                    <div className="text-[10px] text-emerald-600 font-semibold">Konseling Aktif</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {currentUser && (
+                <div className="p-3 rounded-2xl bg-[#F8FBFE] border border-[#D1E3F5] flex items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <StudentAvatar style={currentUser.avatar_style || 'student-female'} size={36} />
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Siswa</div>
+                      <div className="font-extrabold text-sm truncate text-[#0C2340]">{currentUser.name}</div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileDrawerOpen(false);
+                      navigate('/');
+                    }}
+                    className="text-xs font-bold text-[#1B5299] hover:underline shrink-0"
+                  >
+                    Ganti
+                  </button>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileDrawerOpen(false);
+                    navigate('/topics');
+                  }}
+                  className="w-full py-2.5 px-3.5 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer border bg-[#EBF3FC] text-[#0C2340] border-[#D1E3F5]"
+                >
+                  <span className="flex items-center gap-2">
+                    <PlusCircle size={15} className="text-[#1B5299]" />
+                    Pilih Topik Baru
+                  </span>
+                  <span className="text-[10px] font-extrabold">→</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileDrawerOpen(false);
+                    navigate('/extras');
+                  }}
+                  className="w-full py-2.5 px-3.5 rounded-xl text-xs font-bold transition flex items-center justify-between cursor-pointer border bg-white text-[#0C2340] border-[#E2EDF8]"
+                >
+                  <span className="flex items-center gap-2">
+                    <Grid size={15} className="text-[#1B5299]" />
+                    Fitur Lainnya
+                  </span>
+                  <span className="text-[10px] font-semibold text-[#64748B]">Tips • BK</span>
+                </button>
+              </div>
+
+              {/* Sessions List */}
+              <div className="space-y-2 pt-2">
+                <div className="text-xs font-extrabold text-[#64748B] flex items-center justify-between">
+                  <span>Riwayat Sesi Tersimpan ({userSessions.length})</span>
+                </div>
+                <div className="space-y-1.5 max-h-60 overflow-y-auto pr-1 chat-scroll">
+                  {userSessions.length === 0 ? (
+                    <div className="text-xs p-3 rounded-xl border border-[#E2EDF8] text-[#94A3B8] text-center">
+                      Belum ada sesi tersimpan.
+                    </div>
+                  ) : (
+                    userSessions.map((s) => {
+                      const isCurrent = String(s.id) === String(sessionId);
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => {
+                            setMobileDrawerOpen(false);
+                            navigate(`/chat/${s.id}`);
+                          }}
+                          className={`p-2.5 rounded-xl text-xs flex items-center justify-between gap-2 cursor-pointer transition border ${
+                            isCurrent
+                              ? 'bg-[#1B5299] text-white font-bold border-[#1B5299]'
+                              : 'bg-white hover:bg-[#F5F8FC] text-[#0C2340] border-[#E2EDF8]'
+                          }`}
+                        >
+                          <div className="min-w-0 flex-1 truncate">
+                            <div className="truncate">{s.topic_title}</div>
+                            <div
+                              className={`text-[10px] flex items-center gap-1 mt-0.5 ${
+                                isCurrent ? 'text-blue-100' : 'text-[#64748B]'
+                              }`}
+                            >
+                              <Clock size={10} />
+                              <span>{s.message_count} pesan</span>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSession(s.id, e)}
+                            className={`p-1 rounded transition shrink-0 ${
+                              isCurrent ? 'text-white hover:bg-white/20' : 'text-slate-400 hover:text-red-500'
+                            }`}
+                            title="Hapus Sesi"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-[#E2EDF8] flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileDrawerOpen(false);
+                  handleLogoutProfile();
+                  navigate('/');
+                }}
+                className="flex items-center gap-2 text-xs font-bold text-[#64748B] hover:text-red-600 transition"
+              >
+                <LogOut size={15} />
+                <span>Keluar Akun</span>
+              </button>
+              <span className="text-[10px] text-[#94A3B8]">SociaCare v1.0</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fullscreen Infographic Zoom Modal */}
       {previewImage && (

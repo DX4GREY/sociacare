@@ -1174,32 +1174,38 @@ export default function AdminPanel() {
   // =========================================================================
   if (!adminToken) {
     return (
-      <div className="min-h-[100dvh] w-full bg-gradient-to-br from-[#0F294A] via-[#163A5F] to-[#1E5FA8] flex items-center justify-center p-5 text-white">
-        <div className="w-full max-w-md bg-white text-[#1E2F47] rounded-3xl p-7 sm:p-9 shadow-2xl space-y-6">
-          <div className="flex items-center justify-between">
+      <div className="min-h-[100dvh] w-full bg-[#F5F8FC] flex items-center justify-center p-5 text-[#0C2340]">
+        <div className="w-full max-w-md bg-white border-2 border-[#D1E3F5] text-[#0C2340] rounded-3xl p-7 sm:p-9 shadow-float space-y-6">
+          <div className="flex items-center justify-between pb-4 border-b border-[#E2EDF8]">
             <div className="flex items-center gap-3">
-              <SociaHeartLogo size={40} />
+              <SociaHeartLogo size={42} />
               <div>
-                <h1 className="font-extrabold text-xl text-[#163A5F]">
+                <h1 className="font-extrabold text-xl text-[#0C2340] tracking-tight">
                   SociaCare Admin
                 </h1>
-                <p className="text-xs text-[#4A6382]">
-                  Panel Pengolahan Server, AI & Database User
+                <p className="text-xs text-[#64748B] font-medium">
+                  Panel Pengolahan Server, AI & Database
                 </p>
               </div>
             </div>
-            <ShieldCheck size={28} className="text-[#1E5FA8]" />
+            <div className="p-2.5 rounded-2xl bg-[#EBF3FC] text-[#1B5299]">
+              <ShieldCheck size={26} />
+            </div>
           </div>
 
+          <p className="text-xs text-[#3E5771] leading-relaxed">
+            Akses khusus administrator sistem untuk memantau performa backend, penggunaan token Gemini AI, query SQL langsung, dan backup database.
+          </p>
+
           {loginError && (
-            <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3.5 py-2.5 rounded-xl">
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold px-3.5 py-2.5 rounded-2xl animate-shake">
               {loginError}
             </div>
           )}
 
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div>
-              <label htmlFor="admin-login-pwd" className="block text-xs font-bold text-[#184B78] mb-1.5">
+              <label htmlFor="admin-login-pwd" className="block text-xs font-bold text-[#0C2340] mb-1.5">
                 Password Administrator
               </label>
               <input
@@ -1210,23 +1216,23 @@ export default function AdminPanel() {
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="Masukkan Password Administrator"
-                className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-4 py-3 text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                className="w-full bg-[#F5F8FC] border border-[#D1E3F5] rounded-2xl px-4 py-3 text-base sm:text-sm font-semibold text-[#0C2340] placeholder-[#94A3B8] focus:outline-none focus:border-[#1B5299] focus:bg-white transition shadow-2xs"
                 required
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white font-bold text-sm py-3.5 rounded-full shadow-lg transition cursor-pointer"
+              className="w-full bg-[#1B5299] hover:bg-[#133E75] text-white font-bold text-sm py-3.5 rounded-2xl shadow-soft transition cursor-pointer"
             >
               Masuk ke Panel Admin
             </button>
           </form>
 
-          <div className="pt-2 border-t border-slate-100 text-center">
+          <div className="pt-2 border-t border-[#E2EDF8] text-center">
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1E5FA8] hover:underline"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1B5299] hover:underline"
             >
               <ArrowLeft size={14} />
               Kembali ke Aplikasi Siswa
@@ -1258,11 +1264,11 @@ export default function AdminPanel() {
   const emergencyUsersCount = emergencyUsers.length;
 
   return (
-    <div className="min-h-[100dvh] w-full bg-[#F0F6FC] text-[#1E2F47] flex flex-col lg:flex-row">
+    <div className="min-h-[100dvh] w-full bg-[#F5F8FC] text-[#0C2340] flex flex-col lg:flex-row">
       {/* =====================================================================
           LEFT NAVIGATION SIDEBAR (ADMIN)
          ===================================================================== */}
-      <aside className="w-full lg:w-72 bg-[#102A45] text-white flex flex-col justify-between shrink-0">
+      <aside className="w-full lg:w-72 bg-[#0C2340] text-white flex flex-col justify-between shrink-0 shadow-soft">
         <div>
           <div className="p-5 sm:p-6 border-b border-white/10 flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1293,9 +1299,9 @@ export default function AdminPanel() {
                 setActiveTab('server');
                 loadServerStats();
               }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'server'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1310,9 +1316,9 @@ export default function AdminPanel() {
                 loadAiSettings();
                 loadServerStats();
               }}
-              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'ai_config'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1331,9 +1337,9 @@ export default function AdminPanel() {
                 setActiveTab('users');
                 loadUsers();
               }}
-              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'users'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1359,9 +1365,9 @@ export default function AdminPanel() {
                 setActiveTab('counseling');
                 loadCounselingData();
               }}
-              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'counseling'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1380,9 +1386,9 @@ export default function AdminPanel() {
                 setActiveTab('teachers');
                 loadTeachers();
               }}
-              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'teachers'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1401,9 +1407,9 @@ export default function AdminPanel() {
                 setActiveTab('content');
                 loadContentData();
               }}
-              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'content'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1423,9 +1429,9 @@ export default function AdminPanel() {
                 loadPhotos();
                 loadMemories();
               }}
-              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'learning_photos'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1448,9 +1454,9 @@ export default function AdminPanel() {
                   );
                 }
               }}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
                 activeTab === 'sql'
-                  ? 'bg-[#1E5FA8] text-white shadow'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
                   : 'text-slate-300 hover:bg-white/10 hover:text-white'
               }`}
             >
@@ -1567,7 +1573,7 @@ export default function AdminPanel() {
               bannerMsg.type === 'error'
                 ? 'bg-red-600 text-white border-red-700 shadow-red-900/20'
                 : bannerMsg.type === 'loading'
-                ? 'bg-[#1E5FA8] text-white border-[#15467E] shadow-blue-900/30'
+                ? 'bg-[#1B5299] text-white border-[#15467E] shadow-blue-900/30'
                 : 'bg-emerald-600 text-white border-emerald-700 shadow-emerald-900/20'
             }`}
           >
@@ -1603,7 +1609,7 @@ export default function AdminPanel() {
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#102A45]">
                   Pengolahan Server, Token AI & Infrastruktur Database
                 </h1>
-                <p className="text-xs sm:text-sm text-[#4A6382]">
+                <p className="text-xs sm:text-sm text-[#3E5771]">
                   Pantau penggunaan token Gemini AI, resource server real-time, konfigurasi `.env`, dan pemeliharaan database SQL.
                 </p>
               </div>
@@ -1611,7 +1617,7 @@ export default function AdminPanel() {
                 <button
                   type="button"
                   onClick={handleExportDatabase}
-                  className="bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  className="bg-[#1B5299] hover:bg-[#133E75] text-white text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
                 >
                   <Download size={16} />
                   <span>Backup Database (.JSON)</span>
@@ -1619,7 +1625,7 @@ export default function AdminPanel() {
                 <button
                   type="button"
                   onClick={loadServerStats}
-                  className="bg-white hover:bg-slate-50 border border-[#C5DDF6] text-[#163A5F] text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  className="bg-white hover:bg-slate-50 border border-[#D1E3F5] text-[#0C2340] text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
                 >
                   <RefreshCw size={15} />
                   <span>Refresh</span>
@@ -1729,8 +1735,8 @@ export default function AdminPanel() {
 
             {/* Top 4 Server & DB Metric Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-[#4A6382]">
+              <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-[#3E5771]">
                   <span>STATUS SERVER & JARINGAN</span>
                   <Activity size={18} className="text-emerald-600" />
                 </div>
@@ -1738,16 +1744,16 @@ export default function AdminPanel() {
                   Online ({stats?.server?.bindAddress || '0.0.0.0'}:
                   {stats?.server?.port || 3001})
                 </div>
-                <div className="text-xs text-[#4A6382] space-y-0.5">
+                <div className="text-xs text-[#3E5771] space-y-0.5">
                   <div>
                     Uptime Server:{' '}
-                    <strong className="text-[#163A5F]">
+                    <strong className="text-[#0C2340]">
                       {formatUptime(stats?.server?.uptimeSeconds)}
                     </strong>
                   </div>
                   <div>
                     IP LAN:{' '}
-                    <strong className="text-[#1E5FA8]">
+                    <strong className="text-[#1B5299]">
                       {stats?.server?.lanIps?.join(', ') || '127.0.0.1'}
                     </strong>
                   </div>
@@ -1758,21 +1764,21 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-[#4A6382]">
+              <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-[#3E5771]">
                   <span>PENGGUNAAN RAM & MEMORI</span>
-                  <HardDrive size={18} className="text-[#1E5FA8]" />
+                  <HardDrive size={18} className="text-[#1B5299]" />
                 </div>
                 <div className="text-lg font-extrabold text-[#102A45]">
                   {formatBytes(stats?.server?.memory?.rss)} (Node RSS)
                 </div>
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
                   <div
-                    className="bg-[#1E5FA8] h-full rounded-full"
+                    className="bg-[#1B5299] h-full rounded-full"
                     style={{ width: `${Math.min(100, osMemPercent)}%` }}
                   />
                 </div>
-                <div className="text-xs text-[#4A6382] space-y-0.5">
+                <div className="text-xs text-[#3E5771] space-y-0.5">
                   <div>
                     Heap JS: {formatBytes(stats?.server?.memory?.heapUsed)} /{' '}
                     {formatBytes(stats?.server?.memory?.heapTotal)}
@@ -1784,15 +1790,15 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-[#4A6382]">
+              <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-[#3E5771]">
                   <span>PROSESOR & SISTEM OS</span>
                   <Cpu size={18} className="text-indigo-600" />
                 </div>
                 <div className="text-lg font-extrabold text-[#102A45]">
                   {stats?.server?.cpuCount || 1} Core CPU
                 </div>
-                <div className="text-xs text-[#4A6382] space-y-0.5">
+                <div className="text-xs text-[#3E5771] space-y-0.5">
                   <div className="truncate" title={stats?.server?.cpuModel}>
                     {stats?.server?.cpuModel}
                   </div>
@@ -1808,8 +1814,8 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-2">
-                <div className="flex items-center justify-between text-xs font-bold text-[#4A6382]">
+              <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between text-xs font-bold text-[#3E5771]">
                   <span>MESIN DATABASE SQL</span>
                   <Database size={18} className="text-amber-600" />
                 </div>
@@ -1818,7 +1824,7 @@ export default function AdminPanel() {
                     ? 'PostgreSQL'
                     : 'SQLite SQL Engine'}
                 </div>
-                <div className="text-xs text-[#4A6382] space-y-0.5">
+                <div className="text-xs text-[#3E5771] space-y-0.5">
                   <div>
                     Ukuran DB:{' '}
                     <strong>{formatBytes(stats?.database?.fileSizeBytes)}</strong>
@@ -1839,10 +1845,10 @@ export default function AdminPanel() {
 
             {/* Row 2: Gemini AI Diagnostics & Server Config + DB Maintenance */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-7 bg-white border border-[#C5DDF6] rounded-2xl p-6 shadow-2xs space-y-5">
+              <div className="lg:col-span-7 bg-white border border-[#D1E3F5] rounded-2xl p-6 shadow-2xs space-y-5">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2.5">
-                    <KeyRound size={20} className="text-[#1E5FA8]" />
+                    <KeyRound size={20} className="text-[#1B5299]" />
                     <h2 className="font-extrabold text-base text-[#102A45]">
                       Konfigurasi Server & Koneksi Gemini AI (`.env`)
                     </h2>
@@ -1859,13 +1865,13 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Test Gemini AI Ping */}
-                <div className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-2xl p-4 space-y-3">
+                <div className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-2xl p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <div className="text-xs sm:text-sm font-bold text-[#163A5F]">
+                      <div className="text-xs sm:text-sm font-bold text-[#0C2340]">
                         Diagnostik Koneksi LLM Google Gemini
                       </div>
-                      <p className="text-xs text-[#4A6382]">
+                      <p className="text-xs text-[#3E5771]">
                         Uji kecepatan soket IPv4 server & lihat pemakaian token respons uji.
                       </p>
                     </div>
@@ -1873,7 +1879,7 @@ export default function AdminPanel() {
                       type="button"
                       disabled={testingGemini}
                       onClick={handleTestGeminiConnection}
-                      className="bg-[#1E5FA8] hover:bg-[#15467E] disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                      className="bg-[#1B5299] hover:bg-[#133E75] disabled:opacity-60 text-white text-xs font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <Play size={14} />
                       <span>
@@ -1911,11 +1917,11 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Test DeepSeek AI Ping (Fallback Terakhir) */}
-                <div className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-2xl p-4 space-y-3">
+                <div className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-2xl p-4 space-y-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="text-xs sm:text-sm font-bold text-[#163A5F]">
+                        <span className="text-xs sm:text-sm font-bold text-[#0C2340]">
                           Diagnostik Koneksi LLM DeepSeek (Fallback Terakhir)
                         </span>
                         <span
@@ -1928,7 +1934,7 @@ export default function AdminPanel() {
                           {stats?.server?.deepseekConfigured ? `Key Aktif (${stats?.server?.deepseekMaskedKey})` : 'Key Belum Diatur'}
                         </span>
                       </div>
-                      <p className="text-xs text-[#4A6382]">
+                      <p className="text-xs text-[#3E5771]">
                         Uji koneksi ke `api.deepseek.com` (Model: {stats?.server?.deepseekModel || 'deepseek-chat'}) saat model Gemini bermasalah.
                       </p>
                     </div>
@@ -1987,7 +1993,7 @@ export default function AdminPanel() {
                       value={newGeminiKey}
                       onChange={(e) => setNewGeminiKey(e.target.value)}
                       placeholder="Kosongkan jika tidak ingin mengubah API Key..."
-                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
+                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#0C2340]"
                     />
                   </div>
 
@@ -2005,7 +2011,7 @@ export default function AdminPanel() {
                         value={newDeepseekKey}
                         onChange={(e) => setNewDeepseekKey(e.target.value)}
                         placeholder="sk-xxxxxxxxxxxxxxxx (Kosongkan jika tidak ubah)..."
-                        className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
+                        className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#0C2340]"
                       />
                     </div>
                     <div>
@@ -2019,7 +2025,7 @@ export default function AdminPanel() {
                         value={newDeepseekModel}
                         onChange={(e) => setNewDeepseekModel(e.target.value)}
                         placeholder="Contoh: deepseek-chat atau deepseek-reasoner"
-                        className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
+                        className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#0C2340]"
                       />
                     </div>
                   </div>
@@ -2035,7 +2041,7 @@ export default function AdminPanel() {
                       value={newAdminPwd}
                       onChange={(e) => setNewAdminPwd(e.target.value)}
                       placeholder="Kosongkan jika tidak ingin mengubah password admin..."
-                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
+                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#0C2340]"
                     />
                   </div>
                   <button
@@ -2048,10 +2054,10 @@ export default function AdminPanel() {
               </div>
 
               {/* Right 5 Cols: Database Maintenance & Table Summary */}
-              <div className="lg:col-span-5 bg-white border border-[#C5DDF6] rounded-2xl p-6 shadow-2xs flex flex-col justify-between space-y-5">
+              <div className="lg:col-span-5 bg-white border border-[#D1E3F5] rounded-2xl p-6 shadow-2xs flex flex-col justify-between space-y-5">
                 <div className="space-y-4">
                   <div className="flex items-center gap-2.5 border-b border-slate-100 pb-3">
-                    <Database size={20} className="text-[#1E5FA8]" />
+                    <Database size={20} className="text-[#1B5299]" />
                     <h2 className="font-extrabold text-base text-[#102A45]">
                       Statistik Tabel & Maintenance Database
                     </h2>
@@ -2084,10 +2090,10 @@ export default function AdminPanel() {
                         key={item.table}
                         className="flex items-center justify-between bg-[#F4F9FF] border border-[#D8E8F8] px-3.5 py-2 rounded-xl"
                       >
-                        <span className="font-semibold text-[#163A5F]">
+                        <span className="font-semibold text-[#0C2340]">
                           {item.table}
                         </span>
-                        <span className="font-extrabold text-[#1E5FA8]">
+                        <span className="font-extrabold text-[#1B5299]">
                           {item.count} baris
                         </span>
                       </div>
@@ -2096,14 +2102,14 @@ export default function AdminPanel() {
                 </div>
 
                 <div className="space-y-2 pt-2 border-t border-slate-100">
-                  <div className="text-xs font-extrabold uppercase tracking-wider text-[#4A6382]">
+                  <div className="text-xs font-extrabold uppercase tracking-wider text-[#3E5771]">
                     Tindakan Pemeliharaan Database
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => handleDbMaintenance('vacuum', null)}
-                      className="bg-[#EBF4FC] hover:bg-[#DCEBFA] text-[#163A5F] text-xs font-bold py-2.5 px-3 rounded-xl transition cursor-pointer"
+                      className="bg-[#EBF4FC] hover:bg-[#DCEBFA] text-[#0C2340] text-xs font-bold py-2.5 px-3 rounded-xl transition cursor-pointer"
                     >
                       Optimasi & VACUUM DB
                     </button>
@@ -2149,7 +2155,7 @@ export default function AdminPanel() {
             </div>
 
             {/* Recent AI Token Usage Log Table */}
-            <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-3">
+            <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Zap size={18} className="text-amber-500" />
@@ -2157,7 +2163,7 @@ export default function AdminPanel() {
                     Riwayat Pemakaian Token AI Terbaru (Per Permintaan Chat)
                   </h3>
                 </div>
-                <span className="text-xs text-[#4A6382]">
+                <span className="text-xs text-[#3E5771]">
                   Menampilkan {stats?.tokenUsage?.recentLogs?.length || 0} panggilan terakhir
                 </span>
               </div>
@@ -2165,7 +2171,7 @@ export default function AdminPanel() {
               <div className="overflow-x-auto max-h-64 chat-scroll">
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
-                    <tr className="bg-[#E8F2FC] text-[#163A5F] border-b border-[#C5DDF6]">
+                    <tr className="bg-[#EBF3FC] text-[#0C2340] border-b border-[#D1E3F5]">
                       <th className="py-2.5 px-3 font-extrabold">Waktu</th>
                       <th className="py-2.5 px-3 font-extrabold">Siswa</th>
                       <th className="py-2.5 px-3 font-extrabold">Model</th>
@@ -2191,7 +2197,7 @@ export default function AdminPanel() {
                       <tr>
                         <td
                           colSpan={8}
-                          className="py-6 text-center text-[#4A6382]"
+                          className="py-6 text-center text-[#3E5771]"
                         >
                           Belum ada riwayat pemakaian token AI.
                         </td>
@@ -2199,13 +2205,13 @@ export default function AdminPanel() {
                     ) : (
                       stats.tokenUsage.recentLogs.map((log) => (
                         <tr key={log.id} className="hover:bg-[#F8FBFF]">
-                          <td className="py-2 px-3 text-[#4A6382] font-mono">
+                          <td className="py-2 px-3 text-[#3E5771] font-mono">
                             {log.created_at}
                           </td>
-                          <td className="py-2 px-3 font-bold text-[#163A5F]">
+                          <td className="py-2 px-3 font-bold text-[#0C2340]">
                             {log.user_name || 'Tes Admin / Sistem'}
                           </td>
-                          <td className="py-2 px-3 font-mono text-[#1E5FA8]">
+                          <td className="py-2 px-3 font-mono text-[#1B5299]">
                             {log.model_name}
                           </td>
                           <td className="py-2 px-3 text-right font-mono">
@@ -2220,7 +2226,7 @@ export default function AdminPanel() {
                           <td className="py-2 px-3 text-right font-mono font-extrabold text-[#102A45]">
                             {formatNum(log.total_tokens)}
                           </td>
-                          <td className="py-2 px-3 text-right font-mono text-[#4A6382]">
+                          <td className="py-2 px-3 text-right font-mono text-[#3E5771]">
                             {log.latency_ms} ms
                           </td>
                         </tr>
@@ -2287,7 +2293,7 @@ export default function AdminPanel() {
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#102A45]">
                   Pengaturan Format Pembuka AI & Statistik Token
                 </h1>
-                <p className="text-xs sm:text-sm text-[#4A6382]">
+                <p className="text-xs sm:text-sm text-[#3E5771]">
                   Kustomisasi pesan sapaan pembuka saat siswa memulai sesi konseling, atur instruksi karakter AI, dan pantau pemakaian token per siswa.
                 </p>
               </div>
@@ -2295,7 +2301,7 @@ export default function AdminPanel() {
                 <button
                   type="button"
                   onClick={handleResetAiSettingsToDefault}
-                  className="bg-white hover:bg-slate-50 border border-[#C5DDF6] text-[#163A5F] text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  className="bg-white hover:bg-slate-50 border border-[#D1E3F5] text-[#0C2340] text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
                 >
                   <RotateCcw size={15} />
                   <span>Reset ke Default</span>
@@ -2304,7 +2310,7 @@ export default function AdminPanel() {
                   type="button"
                   disabled={savingAiSettings}
                   onClick={handleSaveAiSettings}
-                  className="bg-[#1E5FA8] hover:bg-[#15467E] disabled:opacity-60 text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
+                  className="bg-[#1B5299] hover:bg-[#133E75] disabled:opacity-60 text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 shadow-xs transition cursor-pointer"
                 >
                   <Save size={16} />
                   <span>
@@ -2318,11 +2324,11 @@ export default function AdminPanel() {
               {/* Left 7 Cols: Editor Format Pembuka AI & Persona */}
               <form
                 onSubmit={handleSaveAiSettings}
-                className="lg:col-span-7 bg-white border border-[#C5DDF6] rounded-2xl p-6 shadow-2xs space-y-5"
+                className="lg:col-span-7 bg-white border border-[#D1E3F5] rounded-2xl p-6 shadow-2xs space-y-5"
               >
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <Sparkles size={19} className="text-[#1E5FA8]" />
+                    <Sparkles size={19} className="text-[#1B5299]" />
                     <h2 className="font-extrabold text-base text-[#102A45]">
                       Format Pesan Pembuka Sesi Konseling AI
                     </h2>
@@ -2330,16 +2336,16 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Variable Placeholders Info */}
-                <div className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl p-3.5 text-xs text-[#243B55] space-y-1.5">
-                  <div className="font-bold text-[#163A5F]">
+                <div className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl p-3.5 text-xs text-[#243B55] space-y-1.5">
+                  <div className="font-bold text-[#0C2340]">
                     Variabel Otomatis yang Tersedia:
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <code className="bg-white border border-[#B8D4F2] px-2 py-0.5 rounded font-bold text-[#1E5FA8]">
+                    <code className="bg-white border border-[#B8D4F2] px-2 py-0.5 rounded font-bold text-[#1B5299]">
                       {'{nama}'}
                     </code>
                     <span>→ Nama pengguna</span>
-                    <code className="bg-white border border-[#B8D4F2] px-2 py-0.5 rounded font-bold text-[#1E5FA8]">
+                    <code className="bg-white border border-[#B8D4F2] px-2 py-0.5 rounded font-bold text-[#1B5299]">
                       {'{topik}'}
                     </code>
                     <span>→ Judul topik yang dipilih</span>
@@ -2359,11 +2365,11 @@ export default function AdminPanel() {
                       }
                       className={`p-3 rounded-xl border text-left text-xs transition cursor-pointer ${
                         aiSettings.openingMode === 'global'
-                          ? 'bg-[#E6F1FC] border-[#1E5FA8] font-bold text-[#163A5F]'
-                          : 'bg-white border-[#D8E8F8] text-[#4A6382]'
+                          ? 'bg-[#E6F1FC] border-[#1E5FA8] font-bold text-[#0C2340]'
+                          : 'bg-white border-[#D8E8F8] text-[#3E5771]'
                       }`}
                     >
-                      <div className="font-extrabold text-[#163A5F]">
+                      <div className="font-extrabold text-[#0C2340]">
                         1. Format Pembuka Global (Seragam)
                       </div>
                       <div className="mt-0.5 text-[11px]">
@@ -2378,11 +2384,11 @@ export default function AdminPanel() {
                       }
                       className={`p-3 rounded-xl border text-left text-xs transition cursor-pointer ${
                         aiSettings.openingMode === 'per_topic'
-                          ? 'bg-[#E6F1FC] border-[#1E5FA8] font-bold text-[#163A5F]'
-                          : 'bg-white border-[#D8E8F8] text-[#4A6382]'
+                          ? 'bg-[#E6F1FC] border-[#1E5FA8] font-bold text-[#0C2340]'
+                          : 'bg-white border-[#D8E8F8] text-[#3E5771]'
                       }`}
                     >
-                      <div className="font-extrabold text-[#163A5F]">
+                      <div className="font-extrabold text-[#0C2340]">
                         2. Format Spesifik per Topik (4 Topik)
                       </div>
                       <div className="mt-0.5 text-[11px]">
@@ -2408,7 +2414,7 @@ export default function AdminPanel() {
                         })
                       }
                       placeholder="Terima kasih sudah memilih topik ini..."
-                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl p-3.5 text-xs sm:text-sm text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl p-3.5 text-xs sm:text-sm text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       required
                     />
                   </div>
@@ -2431,7 +2437,7 @@ export default function AdminPanel() {
                               },
                             })
                           }
-                          className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl p-3 text-xs sm:text-sm text-[#163A5F]"
+                          className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl p-3 text-xs sm:text-sm text-[#0C2340]"
                         />
                       </div>
                     ))}
@@ -2454,7 +2460,7 @@ export default function AdminPanel() {
                         })
                       }
                       placeholder="Contoh: Ceritamu aman dan rahasia di sini 💙"
-                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#163A5F]"
+                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-[#0C2340]"
                     />
                   </div>
 
@@ -2474,7 +2480,7 @@ export default function AdminPanel() {
                       placeholder={
                         'Aku merasa dijauhi teman\nAku bingung harus mulai cerita dari mana'
                       }
-                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2 text-xs text-[#163A5F]"
+                      className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-3.5 py-2 text-xs text-[#0C2340]"
                     />
                   </div>
                 </div>
@@ -2493,7 +2499,7 @@ export default function AdminPanel() {
                         systemPersona: e.target.value,
                       })
                     }
-                    className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl p-3.5 text-xs sm:text-sm text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                    className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl p-3.5 text-xs sm:text-sm text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                   />
                 </div>
 
@@ -2501,7 +2507,7 @@ export default function AdminPanel() {
                   <button
                     type="submit"
                     disabled={savingAiSettings}
-                    className="bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-bold px-6 py-3 rounded-xl flex items-center gap-2 shadow transition cursor-pointer"
+                    className="bg-[#1B5299] hover:bg-[#133E75] text-white text-xs sm:text-sm font-bold px-6 py-3 rounded-xl flex items-center gap-2 shadow transition cursor-pointer"
                   >
                     <Save size={16} />
                     <span>Simpan Format Pembuka & Persona AI</span>
@@ -2512,7 +2518,7 @@ export default function AdminPanel() {
               {/* Right 5 Cols: Live Preview of Opening Bubble + Per-User Token Ranking */}
               <div className="lg:col-span-5 space-y-6">
                 {/* Live Preview Card */}
-                <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-4">
+                <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <h3 className="font-extrabold text-sm sm:text-base text-[#102A45]">
                       Pratinjau Sapaan Pembuka AI
@@ -2520,7 +2526,7 @@ export default function AdminPanel() {
                     <select
                       value={previewTopic}
                       onChange={(e) => setPreviewTopic(e.target.value)}
-                      className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-lg px-2.5 py-1 text-xs font-bold text-[#163A5F]"
+                      className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-lg px-2.5 py-1 text-xs font-bold text-[#0C2340]"
                     >
                       <option value="friendship">Topik: Pertemanan</option>
                       <option value="communication">Topik: Komunikasi</option>
@@ -2538,7 +2544,7 @@ export default function AdminPanel() {
                             {renderPreviewGreeting()}
                           </p>
                           {renderPreviewFooter() && (
-                            <p className="font-semibold text-[#163A5F] pt-1">
+                            <p className="font-semibold text-[#0C2340] pt-1">
                               {renderPreviewFooter()}
                             </p>
                           )}
@@ -2568,7 +2574,7 @@ export default function AdminPanel() {
                 </div>
 
                 {/* Token Usage Per User Ranking */}
-                <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-3">
+                <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-3">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                     <div className="flex items-center gap-2">
                       <Zap size={17} className="text-amber-500" />
@@ -2580,7 +2586,7 @@ export default function AdminPanel() {
 
                   <div className="space-y-2 max-h-64 overflow-y-auto pr-1 chat-scroll">
                     {(stats?.tokenUsage?.byUser || []).length === 0 ? (
-                      <div className="text-center py-6 text-xs text-[#4A6382]">
+                      <div className="text-center py-6 text-xs text-[#3E5771]">
                         Belum ada data penggunaan token per siswa.
                       </div>
                     ) : (
@@ -2590,16 +2596,16 @@ export default function AdminPanel() {
                           className="bg-[#F4F9FF] border border-[#D8E8F8] rounded-xl p-3 flex items-center justify-between text-xs"
                         >
                           <div>
-                            <div className="font-bold text-[#163A5F]">
+                            <div className="font-bold text-[#0C2340]">
                               {u.user_name || 'Tes Sistem / Admin'}
                             </div>
-                            <div className="text-[11px] text-[#4A6382]">
+                            <div className="text-[11px] text-[#3E5771]">
                               {u.request_count} request • In:{' '}
                               {formatNum(u.prompt_tokens)} • Out:{' '}
                               {formatNum(u.completion_tokens)}
                             </div>
                           </div>
-                          <span className="bg-[#1E5FA8] text-white font-extrabold px-3 py-1 rounded-full">
+                          <span className="bg-[#1B5299] text-white font-extrabold px-3 py-1 rounded-full">
                             {formatNum(u.total_tokens)} tok
                           </span>
                         </div>
@@ -2622,21 +2628,21 @@ export default function AdminPanel() {
                 <h1 className="text-xl sm:text-2xl font-extrabold text-[#102A45]">
                   Pengolahan Database User (`users`)
                 </h1>
-                <p className="text-xs sm:text-sm text-[#4A6382]">
+                <p className="text-xs sm:text-sm text-[#3E5771]">
                   Kelola akun profil pengguna (cukup nama), tambah/edit/hapus user, lihat pemakaian token per user, dan inspeksi riwayat konseling.
                 </p>
               </div>
               <div className="relative w-full sm:w-72">
                 <Search
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#4A6382]"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#3E5771]"
                 />
                 <input
                   type="text"
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                   placeholder="Cari nama atau ID..."
-                  className="w-full bg-white border border-[#C5DDF6] rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                  className="w-full bg-white border border-[#D1E3F5] rounded-full pl-9 pr-4 py-2 text-xs sm:text-sm text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                 />
               </div>
             </div>
@@ -2644,7 +2650,7 @@ export default function AdminPanel() {
             {/* Add New User Form */}
             <form
               onSubmit={handleCreateUser}
-              className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs flex flex-wrap items-end gap-3"
+              className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs flex flex-wrap items-end gap-3"
             >
               <div className="flex-1 min-w-[200px]">
                 <label className="block text-xs font-bold text-[#184B78] mb-1">
@@ -2678,7 +2684,7 @@ export default function AdminPanel() {
               </div>
               <button
                 type="submit"
-                className="bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                className="bg-[#1B5299] hover:bg-[#133E75] text-white text-xs sm:text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-1.5 transition cursor-pointer"
               >
                 <Plus size={16} />
                 <span>Tambah ke Database</span>
@@ -2686,11 +2692,11 @@ export default function AdminPanel() {
             </form>
 
             {/* Users Table */}
-            <div className="bg-white border border-[#C5DDF6] rounded-2xl shadow-2xs overflow-hidden">
+            <div className="bg-white border border-[#D1E3F5] rounded-2xl shadow-2xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse text-xs sm:text-sm">
                   <thead>
-                    <tr className="bg-[#E8F2FC] text-[#163A5F] border-b border-[#C5DDF6]">
+                    <tr className="bg-[#EBF3FC] text-[#0C2340] border-b border-[#D1E3F5]">
                       <th className="py-3.5 px-4 font-extrabold">ID</th>
                       <th className="py-3.5 px-4 font-extrabold">Nama Pengguna</th>
                       <th className="py-3.5 px-4 font-extrabold">
@@ -2719,7 +2725,7 @@ export default function AdminPanel() {
                       <tr>
                         <td
                           colSpan={9}
-                          className="py-8 text-center text-[#4A6382] font-medium"
+                          className="py-8 text-center text-[#3E5771] font-medium"
                         >
                           Tidak ada data user yang ditemukan di database.
                         </td>
@@ -2736,7 +2742,7 @@ export default function AdminPanel() {
                                 : 'hover:bg-[#F8FBFF]'
                             }`}
                           >
-                            <td className="py-3 px-4 font-mono font-bold text-[#4A6382]">
+                            <td className="py-3 px-4 font-mono font-bold text-[#3E5771]">
                               #{u.id}
                             </td>
                             <td className="py-3 px-4">
@@ -2746,7 +2752,7 @@ export default function AdminPanel() {
                                   className={`font-bold ${
                                     isUserEmergency
                                       ? 'text-red-900'
-                                      : 'text-[#163A5F]'
+                                      : 'text-[#0C2340]'
                                   }`}
                                 >
                                   {u.name}
@@ -2787,7 +2793,7 @@ export default function AdminPanel() {
                                 {u.bk_count}
                               </span>
                             </td>
-                            <td className="py-3 px-4 text-xs text-[#4A6382]">
+                            <td className="py-3 px-4 text-xs text-[#3E5771]">
                               {u.last_active_at || u.created_at}
                             </td>
                             <td className="py-3 px-4">
@@ -2818,7 +2824,7 @@ export default function AdminPanel() {
                                 <button
                                   type="button"
                                   onClick={() => handleInspectUser(u.id)}
-                                  className="p-2 rounded-lg bg-[#E8F2FC] hover:bg-[#1E5FA8] text-[#1E5FA8] hover:text-white transition cursor-pointer"
+                                  className="p-2 rounded-lg bg-[#EBF3FC] hover:bg-[#1B5299] text-[#1B5299] hover:text-white transition cursor-pointer"
                                   title="Inspeksi Detail & Riwayat User"
                                 >
                                   <Eye size={15} />
@@ -2858,7 +2864,7 @@ export default function AdminPanel() {
                   className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-extrabold text-base text-[#163A5F]">
+                    <h3 className="font-extrabold text-base text-[#0C2340]">
                       Edit Data User #{editingUser.id}
                     </h3>
                     <button
@@ -2911,7 +2917,7 @@ export default function AdminPanel() {
                     </button>
                     <button
                       type="submit"
-                      className="bg-[#1E5FA8] text-white text-xs font-bold px-5 py-2.5 rounded-xl"
+                      className="bg-[#1B5299] text-white text-xs font-bold px-5 py-2.5 rounded-xl"
                     >
                       Simpan Perubahan
                     </button>
@@ -2946,7 +2952,7 @@ export default function AdminPanel() {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-[#4A6382]">
+                      <p className="text-xs text-[#3E5771]">
                         ID Database: #{inspectedUserDetail.user.id} •{' '}
                         {inspectedUserDetail.sessions.length} Sesi Chat •{' '}
                         {inspectedUserDetail.messages.length} Pesan •{' '}
@@ -3009,9 +3015,9 @@ export default function AdminPanel() {
                       Log Percakapan Chat User ({inspectedUserDetail.messages.length}{' '}
                       pesan)
                     </div>
-                    <div className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-2xl p-4 max-h-80 overflow-y-auto space-y-2.5 chat-scroll">
+                    <div className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-2xl p-4 max-h-80 overflow-y-auto space-y-2.5 chat-scroll">
                       {inspectedUserDetail.messages.length === 0 ? (
-                        <div className="text-xs text-[#4A6382] text-center py-6">
+                        <div className="text-xs text-[#3E5771] text-center py-6">
                           User ini belum memiliki pesan percakapan.
                         </div>
                       ) : (
@@ -3024,7 +3030,7 @@ export default function AdminPanel() {
                                 : 'bg-white border border-[#D8E8F8] text-[#1E3A5F] mr-6'
                             }`}
                           >
-                            <div className="font-bold text-[10px] uppercase text-[#4A6382] mb-0.5">
+                            <div className="font-bold text-[10px] uppercase text-[#3E5771] mb-0.5">
                               {m.sender === 'user'
                                 ? inspectedUserDetail.user.name
                                 : 'SociaCare AI'}{' '}
@@ -3046,13 +3052,13 @@ export default function AdminPanel() {
                         {inspectedUserDetail.sessions.map((s) => (
                           <div
                             key={s.id}
-                            className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl p-3 text-xs flex items-center justify-between"
+                            className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl p-3 text-xs flex items-center justify-between"
                           >
                             <div>
-                              <span className="font-bold text-[#163A5F]">
+                              <span className="font-bold text-[#0C2340]">
                                 Sesi #{s.id}: {s.topic_title}
                               </span>
-                              <div className="text-[11px] text-[#4A6382]">
+                              <div className="text-[11px] text-[#3E5771]">
                                 Status: {s.status} • Tahap: {s.stage}
                               </div>
                             </div>
@@ -3077,9 +3083,9 @@ export default function AdminPanel() {
                         {inspectedUserDetail.counselorRequests.map((req) => (
                           <div
                             key={req.id}
-                            className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl p-3 text-xs space-y-1"
+                            className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl p-3 text-xs space-y-1"
                           >
-                            <div className="font-bold text-[#163A5F]">
+                            <div className="font-bold text-[#0C2340]">
                               {req.topic_title} ({req.status})
                             </div>
                             <div className="text-[#243B55]">{req.message}</div>
@@ -3099,17 +3105,17 @@ export default function AdminPanel() {
            =================================================================== */}
         {activeTab === 'teachers' && (
           <div className="space-y-6">
-            <div className="bg-white border border-[#C5DDF6] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-white border border-[#D1E3F5] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <span className="p-2.5 rounded-2xl bg-[#E8F2FC] text-[#1E5FA8]">
+                  <span className="p-2.5 rounded-2xl bg-[#EBF3FC] text-[#1B5299]">
                     <GraduationCap size={26} />
                   </span>
                   <div>
                     <h1 className="text-xl sm:text-2xl font-extrabold text-[#102A45]">
                       Manajemen Akun Guru BK & Konselor
                     </h1>
-                    <p className="text-xs sm:text-sm text-[#4A6382] mt-0.5">
+                    <p className="text-xs sm:text-sm text-[#3E5771] mt-0.5">
                       Admin dapat membuat username dan password tersendiri untuk Guru BK, mengelola data konselor, maupun mereset akses login portal /guru.
                     </p>
                   </div>
@@ -3119,7 +3125,7 @@ export default function AdminPanel() {
               <button
                 type="button"
                 onClick={() => setShowTeacherModal(true)}
-                className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-extrabold text-xs sm:text-sm px-5 py-3 rounded-2xl shadow-lg transition flex items-center justify-center gap-2 shrink-0 cursor-pointer"
+                className="bg-[#1B5299] hover:bg-[#133E75] text-white font-extrabold text-xs sm:text-sm px-5 py-3 rounded-2xl shadow-lg transition flex items-center justify-center gap-2 shrink-0 cursor-pointer"
               >
                 <Plus size={18} />
                 <span>+ Buat Akun Guru BK Baru</span>
@@ -3135,13 +3141,13 @@ export default function AdminPanel() {
                   value={teacherSearch}
                   onChange={(e) => setTeacherSearch(e.target.value)}
                   placeholder="Cari nama, username, atau NIP Guru BK..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#C5DDF6] rounded-xl text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#D1E3F5] rounded-xl text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                 />
               </div>
 
               <div className="flex items-center gap-2 text-xs font-bold text-[#184B78]">
                 <span>Total Guru BK Terdaftar:</span>
-                <span className="bg-[#E8F2FC] text-[#1E5FA8] px-2.5 py-0.5 rounded-full font-extrabold">
+                <span className="bg-[#EBF3FC] text-[#1B5299] px-2.5 py-0.5 rounded-full font-extrabold">
                   {teachersList.length}
                 </span>
               </div>
@@ -3152,7 +3158,7 @@ export default function AdminPanel() {
               const q = teacherSearch.toLowerCase().trim();
               return !q || t.name?.toLowerCase().includes(q) || t.username?.toLowerCase().includes(q) || t.nip?.toLowerCase().includes(q);
             }).length === 0 ? (
-              <div className="bg-white border border-[#C5DDF6] rounded-2xl p-10 text-center text-slate-400 text-xs sm:text-sm">
+              <div className="bg-white border border-[#D1E3F5] rounded-2xl p-10 text-center text-slate-400 text-xs sm:text-sm">
                 Belum ada data Guru BK. Klik tombol "+ Buat Akun Guru BK Baru" untuk menambahkan.
               </div>
             ) : (
@@ -3167,22 +3173,22 @@ export default function AdminPanel() {
                     return (
                       <div
                         key={teacher.id}
-                        className="bg-white border border-[#C5DDF6] hover:border-[#1E5FA8] rounded-3xl p-5 shadow-2xs space-y-4 transition flex flex-col justify-between"
+                        className="bg-white border border-[#D1E3F5] hover:border-[#1E5FA8] rounded-3xl p-5 shadow-2xs space-y-4 transition flex flex-col justify-between"
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
-                              <div className="w-11 h-11 rounded-2xl bg-[#E8F2FC] text-[#1E5FA8] flex items-center justify-center font-extrabold text-lg">
+                              <div className="w-11 h-11 rounded-2xl bg-[#EBF3FC] text-[#1B5299] flex items-center justify-center font-extrabold text-lg">
                                 <GraduationCap size={24} />
                               </div>
                               <div>
-                                <h3 className="font-extrabold text-sm sm:text-base text-[#163A5F]">
+                                <h3 className="font-extrabold text-sm sm:text-base text-[#0C2340]">
                                   {teacher.name}
                                 </h3>
-                                <div className="text-xs text-[#4A6382] font-semibold flex items-center gap-1.5 mt-0.5">
+                                <div className="text-xs text-[#3E5771] font-semibold flex items-center gap-1.5 mt-0.5">
                                   <span>ID #{teacher.id}</span>
                                   <span>•</span>
-                                  <span className="text-[#1E5FA8] font-bold">@{teacher.username}</span>
+                                  <span className="text-[#1B5299] font-bold">@{teacher.username}</span>
                                 </div>
                               </div>
                             </div>
@@ -3200,16 +3206,16 @@ export default function AdminPanel() {
 
                           <div className="bg-[#F8FBFE] border border-[#E1EEFA] rounded-2xl p-3.5 text-xs space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-[#4A6382] font-semibold">Username Login:</span>
-                              <code className="bg-white px-2 py-0.5 rounded-md border border-[#C5DDF6] font-mono font-extrabold text-[#163A5F]">
+                              <span className="text-[#3E5771] font-semibold">Username Login:</span>
+                              <code className="bg-white px-2 py-0.5 rounded-md border border-[#D1E3F5] font-mono font-extrabold text-[#0C2340]">
                                 {teacher.username}
                               </code>
                             </div>
 
                             <div className="flex items-center justify-between">
-                              <span className="text-[#4A6382] font-semibold">Password:</span>
+                              <span className="text-[#3E5771] font-semibold">Password:</span>
                               <div className="flex items-center gap-1.5">
-                                <code className="bg-white px-2 py-0.5 rounded-md border border-[#C5DDF6] font-mono font-bold text-[#163A5F]">
+                                <code className="bg-white px-2 py-0.5 rounded-md border border-[#D1E3F5] font-mono font-bold text-[#0C2340]">
                                   {isVisible ? teacher.password : '••••••••'}
                                 </code>
                                 <button
@@ -3220,7 +3226,7 @@ export default function AdminPanel() {
                                       [teacher.id]: !prev[teacher.id],
                                     }))
                                   }
-                                  className="text-slate-400 hover:text-[#1E5FA8] p-1 transition cursor-pointer"
+                                  className="text-slate-400 hover:text-[#1B5299] p-1 transition cursor-pointer"
                                   title={isVisible ? 'Sembunyikan Password' : 'Lihat Password'}
                                 >
                                   {isVisible ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -3230,15 +3236,15 @@ export default function AdminPanel() {
 
                             {teacher.nip && (
                               <div className="flex items-center justify-between">
-                                <span className="text-[#4A6382] font-semibold">NIP / NUPTK:</span>
-                                <span className="font-semibold text-[#163A5F]">{teacher.nip}</span>
+                                <span className="text-[#3E5771] font-semibold">NIP / NUPTK:</span>
+                                <span className="font-semibold text-[#0C2340]">{teacher.nip}</span>
                               </div>
                             )}
 
                             {teacher.phone && (
                               <div className="flex items-center justify-between">
-                                <span className="text-[#4A6382] font-semibold">No. HP / WA:</span>
-                                <span className="font-semibold text-[#163A5F]">{teacher.phone}</span>
+                                <span className="text-[#3E5771] font-semibold">No. HP / WA:</span>
+                                <span className="font-semibold text-[#0C2340]">{teacher.phone}</span>
                               </div>
                             )}
 
@@ -3261,7 +3267,7 @@ export default function AdminPanel() {
                           <button
                             type="button"
                             onClick={() => setEditingTeacher({ ...teacher, password: '' })}
-                            className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                            className="bg-[#1B5299] hover:bg-[#133E75] text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
                           >
                             <Edit3 size={13} />
                             <span>Edit / Ubah Password</span>
@@ -3284,8 +3290,8 @@ export default function AdminPanel() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between border-b border-[#F0F7FF] pb-3">
-                    <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-base sm:text-lg">
-                      <GraduationCap size={22} className="text-[#1E5FA8]" />
+                    <div className="flex items-center gap-2 text-[#0C2340] font-extrabold text-base sm:text-lg">
+                      <GraduationCap size={22} className="text-[#1B5299]" />
                       <span>Buat Akun Guru BK Baru</span>
                     </div>
                     <button
@@ -3308,7 +3314,7 @@ export default function AdminPanel() {
                         value={newTeacherForm.name}
                         onChange={(e) => setNewTeacherForm({ ...newTeacherForm, name: e.target.value })}
                         placeholder="Contoh: Dra. Hj. Siti Nurhaliza, M.Pd"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -3322,7 +3328,7 @@ export default function AdminPanel() {
                         value={newTeacherForm.username}
                         onChange={(e) => setNewTeacherForm({ ...newTeacherForm, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
                         placeholder="Contoh: sitinurhaliza, gurubk2"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -3336,7 +3342,7 @@ export default function AdminPanel() {
                         value={newTeacherForm.password}
                         onChange={(e) => setNewTeacherForm({ ...newTeacherForm, password: e.target.value })}
                         placeholder="Masukkan password untuk login Guru BK"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -3350,7 +3356,7 @@ export default function AdminPanel() {
                           value={newTeacherForm.nip}
                           onChange={(e) => setNewTeacherForm({ ...newTeacherForm, nip: e.target.value })}
                           placeholder="Contoh: 19800101..."
-                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                          className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#0C2340]"
                         />
                       </div>
 
@@ -3363,7 +3369,7 @@ export default function AdminPanel() {
                           value={newTeacherForm.phone}
                           onChange={(e) => setNewTeacherForm({ ...newTeacherForm, phone: e.target.value })}
                           placeholder="0812..."
-                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                          className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#0C2340]"
                         />
                       </div>
                     </div>
@@ -3378,7 +3384,7 @@ export default function AdminPanel() {
                       </button>
                       <button
                         type="submit"
-                        className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                        className="bg-[#1B5299] hover:bg-[#133E75] text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
                       >
                         Buat Akun Guru BK
                       </button>
@@ -3399,8 +3405,8 @@ export default function AdminPanel() {
                   onClick={(e) => e.stopPropagation()}
                 >
                   <div className="flex items-center justify-between border-b border-[#F0F7FF] pb-3">
-                    <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-base sm:text-lg">
-                      <Edit3 size={20} className="text-[#1E5FA8]" />
+                    <div className="flex items-center gap-2 text-[#0C2340] font-extrabold text-base sm:text-lg">
+                      <Edit3 size={20} className="text-[#1B5299]" />
                       <span>Edit Akun Guru BK #{editingTeacher.id}</span>
                     </div>
                     <button
@@ -3422,7 +3428,7 @@ export default function AdminPanel() {
                         required
                         value={editingTeacher.name}
                         onChange={(e) => setEditingTeacher({ ...editingTeacher, name: e.target.value })}
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340]"
                       />
                     </div>
 
@@ -3435,7 +3441,7 @@ export default function AdminPanel() {
                         required
                         value={editingTeacher.username}
                         onChange={(e) => setEditingTeacher({ ...editingTeacher, username: e.target.value.toLowerCase().replace(/\s+/g, '') })}
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340]"
                       />
                     </div>
 
@@ -3448,7 +3454,7 @@ export default function AdminPanel() {
                         value={editingTeacher.password || ''}
                         onChange={(e) => setEditingTeacher({ ...editingTeacher, password: e.target.value })}
                         placeholder="Ketik password baru jika ingin mereset"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340]"
                       />
                     </div>
 
@@ -3461,7 +3467,7 @@ export default function AdminPanel() {
                           type="text"
                           value={editingTeacher.nip || ''}
                           onChange={(e) => setEditingTeacher({ ...editingTeacher, nip: e.target.value })}
-                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                          className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#0C2340]"
                         />
                       </div>
 
@@ -3472,7 +3478,7 @@ export default function AdminPanel() {
                         <select
                           value={Number(editingTeacher.is_active) === 1 ? '1' : '0'}
                           onChange={(e) => setEditingTeacher({ ...editingTeacher, is_active: Number(e.target.value) })}
-                          className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#163A5F]"
+                          className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs font-semibold text-[#0C2340]"
                         >
                           <option value="1">Aktif (Bisa Login)</option>
                           <option value="0">Nonaktif (Diblokir)</option>
@@ -3490,7 +3496,7 @@ export default function AdminPanel() {
                       </button>
                       <button
                         type="submit"
-                        className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
+                        className="bg-[#1B5299] hover:bg-[#133E75] text-white font-extrabold text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow-xs transition cursor-pointer"
                       >
                         Simpan Perubahan
                       </button>
@@ -3511,16 +3517,16 @@ export default function AdminPanel() {
               <h1 className="text-xl sm:text-2xl font-extrabold text-[#102A45]">
                 Manajemen Sesi Konseling & Tiket Guru BK
               </h1>
-              <p className="text-xs sm:text-sm text-[#4A6382]">
+              <p className="text-xs sm:text-sm text-[#3E5771]">
                 Tanggapi pengajuan konseling tatap muka Guru BK dari siswa dan kelola seluruh sesi percakapan aktif.
               </p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-              <div className="lg:col-span-6 bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="lg:col-span-6 bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <Headphones size={18} className="text-[#1E5FA8]" />
+                    <Headphones size={18} className="text-[#1B5299]" />
                     <h2 className="font-extrabold text-base text-[#102A45]">
                       Tiket Pengajuan Guru BK ({allBkRequests.length})
                     </h2>
@@ -3529,21 +3535,21 @@ export default function AdminPanel() {
 
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1 chat-scroll">
                   {allBkRequests.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-[#4A6382]">
+                    <div className="text-center py-8 text-xs text-[#3E5771]">
                       Belum ada pengajuan konseling Guru BK dari siswa.
                     </div>
                   ) : (
                     allBkRequests.map((req) => (
                       <div
                         key={req.id}
-                        className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-2xl p-4 space-y-2 text-xs sm:text-sm"
+                        className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-2xl p-4 space-y-2 text-xs sm:text-sm"
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <span className="font-extrabold text-[#163A5F]">
+                            <span className="font-extrabold text-[#0C2340]">
                               {req.user_name || `User #${req.user_id}`}
                             </span>
-                            <div className="text-xs font-bold text-[#1E5FA8]">
+                            <div className="text-xs font-bold text-[#1B5299]">
                               {req.topic_title}
                             </div>
                           </div>
@@ -3554,7 +3560,7 @@ export default function AdminPanel() {
                         <p className="text-[#243B55] bg-white p-2.5 rounded-xl border border-[#D8E8F8]">
                           "{req.message}"
                         </p>
-                        <div className="text-xs text-[#4A6382]">
+                        <div className="text-xs text-[#3E5771]">
                           Jadwal diminta: <strong>{req.preferred_schedule}</strong>
                         </div>
                         {req.counselor_reply && (
@@ -3566,7 +3572,7 @@ export default function AdminPanel() {
                           <button
                             type="button"
                             onClick={() => setEditingBk({ ...req })}
-                            className="bg-[#1E5FA8] text-white text-xs font-bold px-3.5 py-1.5 rounded-lg cursor-pointer"
+                            className="bg-[#1B5299] text-white text-xs font-bold px-3.5 py-1.5 rounded-lg cursor-pointer"
                           >
                             Ubah Status / Balas
                           </button>
@@ -3584,10 +3590,10 @@ export default function AdminPanel() {
                 </div>
               </div>
 
-              <div className="lg:col-span-6 bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="lg:col-span-6 bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <MessageSquare size={18} className="text-[#1E5FA8]" />
+                    <MessageSquare size={18} className="text-[#1B5299]" />
                     <h2 className="font-extrabold text-base text-[#102A45]">
                       Seluruh Sesi Chat Siswa ({allSessions.length})
                     </h2>
@@ -3596,18 +3602,18 @@ export default function AdminPanel() {
 
                 <div className="space-y-2.5 max-h-[500px] overflow-y-auto pr-1 chat-scroll">
                   {allSessions.length === 0 ? (
-                    <div className="text-center py-8 text-xs text-[#4A6382]">
+                    <div className="text-center py-8 text-xs text-[#3E5771]">
                       Belum ada sesi konseling yang tercatat.
                     </div>
                   ) : (
                     allSessions.map((s) => (
                       <div
                         key={s.id}
-                        className="bg-[#F4F9FF] border border-[#C5DDF6] rounded-2xl p-4 flex items-start justify-between gap-3 text-xs sm:text-sm"
+                        className="bg-[#F4F9FF] border border-[#D1E3F5] rounded-2xl p-4 flex items-start justify-between gap-3 text-xs sm:text-sm"
                       >
                         <div className="space-y-1 min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-[#163A5F]">
+                            <span className="font-extrabold text-[#0C2340]">
                               #{s.id} • {s.user_name || `User #${s.user_id}`}
                             </span>
                             <span
@@ -3620,10 +3626,10 @@ export default function AdminPanel() {
                               {s.status}
                             </span>
                           </div>
-                          <div className="font-bold text-xs text-[#1E5FA8]">
+                          <div className="font-bold text-xs text-[#1B5299]">
                             {s.topic_title}
                           </div>
-                          <p className="text-xs text-[#4A6382] truncate">
+                          <p className="text-xs text-[#3E5771] truncate">
                             {s.last_message}
                           </p>
                           <div className="text-[11px] text-slate-400">
@@ -3637,7 +3643,7 @@ export default function AdminPanel() {
                               setActiveTab('users');
                               handleInspectUser(s.user_id);
                             }}
-                            className="p-2 rounded-lg bg-white border border-[#C5DDF6] text-[#1E5FA8] hover:bg-[#1E5FA8] hover:text-white transition cursor-pointer"
+                            className="p-2 rounded-lg bg-white border border-[#D1E3F5] text-[#1B5299] hover:bg-[#1B5299] hover:text-white transition cursor-pointer"
                             title="Lihat Transkrip Lengkap"
                           >
                             <Eye size={15} />
@@ -3665,7 +3671,7 @@ export default function AdminPanel() {
                   className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-extrabold text-base text-[#163A5F]">
+                    <h3 className="font-extrabold text-base text-[#0C2340]">
                       Tanggapi Tiket Guru BK #{editingBk.id}
                     </h3>
                     <button
@@ -3718,7 +3724,7 @@ export default function AdminPanel() {
                     </button>
                     <button
                       type="submit"
-                      className="bg-[#1E5FA8] text-white text-xs font-bold px-5 py-2.5 rounded-xl"
+                      className="bg-[#1B5299] text-white text-xs font-bold px-5 py-2.5 rounded-xl"
                     >
                       Simpan Balasan
                     </button>
@@ -3738,7 +3744,7 @@ export default function AdminPanel() {
               <h1 className="text-xl sm:text-2xl font-extrabold text-[#102A45]">
                 Interactive SQL Query Console
               </h1>
-              <p className="text-xs sm:text-sm text-[#4A6382]">
+              <p className="text-xs sm:text-sm text-[#3E5771]">
                 Jalankan perintah SQL langsung (`SELECT`, `INSERT`, `UPDATE`, `DELETE`) untuk mengolah tabel database server.
               </p>
             </div>
@@ -3770,7 +3776,7 @@ export default function AdminPanel() {
                   key={preset.label}
                   type="button"
                   onClick={() => handleRunSql(preset.sql)}
-                  className="bg-white hover:bg-[#1E5FA8] text-[#163A5F] hover:text-white border border-[#C5DDF6] text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer"
+                  className="bg-white hover:bg-[#1B5299] text-[#0C2340] hover:text-white border border-[#D1E3F5] text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer"
                 >
                   {preset.label}
                 </button>
@@ -3799,7 +3805,7 @@ export default function AdminPanel() {
                   type="button"
                   disabled={runningSql}
                   onClick={() => handleRunSql()}
-                  className="bg-[#1E5FA8] hover:bg-[#2872C6] text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
+                  className="bg-[#1B5299] hover:bg-[#2872C6] text-white text-xs sm:text-sm font-bold px-6 py-2.5 rounded-xl flex items-center gap-2 transition cursor-pointer"
                 >
                   <Play size={15} />
                   <span>{runningSql ? 'Menjalankan...' : 'Jalankan Query SQL'}</span>
@@ -3808,20 +3814,20 @@ export default function AdminPanel() {
             </div>
 
             {sqlResult && (
-              <div className="bg-white border border-[#C5DDF6] rounded-2xl shadow-2xs overflow-hidden">
+              <div className="bg-white border border-[#D1E3F5] rounded-2xl shadow-2xs overflow-hidden">
                 {!sqlResult.ok ? (
                   <div className="p-5 bg-red-50 text-red-700 font-mono text-xs sm:text-sm">
                     SQL Error: {sqlResult.error}
                   </div>
                 ) : sqlResult.rows?.length === 0 ? (
-                  <div className="p-6 text-center text-xs sm:text-sm text-[#4A6382]">
+                  <div className="p-6 text-center text-xs sm:text-sm text-[#3E5771]">
                     Query berhasil dijalankan ({sqlResult.durationMs} ms). Tidak ada baris yang dikembalikan.
                   </div>
                 ) : (
                   <div className="overflow-x-auto max-h-[460px] chat-scroll">
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
-                        <tr className="bg-[#E8F2FC] text-[#163A5F] border-b border-[#C5DDF6]">
+                        <tr className="bg-[#EBF3FC] text-[#0C2340] border-b border-[#D1E3F5]">
                           {Object.keys(sqlResult.rows[0]).map((col) => (
                             <th
                               key={col}
@@ -3865,17 +3871,17 @@ export default function AdminPanel() {
         {activeTab === 'content' && (
           <div className="space-y-6">
             {/* Header Banner */}
-            <div className="bg-white border border-[#C5DDF6] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-white border border-[#D1E3F5] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2.5">
-                  <span className="p-2 rounded-xl bg-[#E8F2FC] text-[#1E5FA8]">
+                  <span className="p-2 rounded-xl bg-[#EBF3FC] text-[#1B5299]">
                     <BookOpen size={24} />
                   </span>
-                  <h2 className="text-lg sm:text-xl font-extrabold text-[#163A5F]">
+                  <h2 className="text-lg sm:text-xl font-extrabold text-[#0C2340]">
                     Kelola Materi Edukasi Siswa
                   </h2>
                 </div>
-                <p className="text-xs sm:text-sm text-[#4A6382] mt-1.5 leading-relaxed max-w-2xl">
+                <p className="text-xs sm:text-sm text-[#3E5771] mt-1.5 leading-relaxed max-w-2xl">
                   Admin dapat menambahkan Tips Sosial, Artikel Informasi, dan Video Edukasi YouTube baru. Konten yang ditambahkan akan langsung tampil di halaman <strong>Fitur Lainnya</strong> untuk siswa.
                 </p>
               </div>
@@ -3885,7 +3891,7 @@ export default function AdminPanel() {
                   type="button"
                   onClick={loadContentData}
                   disabled={loadingContent}
-                  className="bg-[#EBF4FD] hover:bg-[#DCEBFA] text-[#1E5FA8] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-full transition flex items-center gap-2 cursor-pointer border border-[#C5DDF6]"
+                  className="bg-[#EBF4FD] hover:bg-[#DCEBFA] text-[#1B5299] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-full transition flex items-center gap-2 cursor-pointer border border-[#D1E3F5]"
                 >
                   <RefreshCw size={15} className={loadingContent ? 'animate-spin' : ''} />
                   <span>Refresh Materi</span>
@@ -3894,20 +3900,20 @@ export default function AdminPanel() {
             </div>
 
             {/* Sub-Tab Navigation Switcher */}
-            <div className="flex items-center gap-2 p-1.5 bg-[#E8F2FC] rounded-2xl max-w-fit border border-[#C5DDF6]">
+            <div className="flex items-center gap-2 p-1.5 bg-[#EBF3FC] rounded-2xl max-w-fit border border-[#D1E3F5]">
               <button
                 type="button"
                 onClick={() => setContentTab('tips')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                   contentTab === 'tips'
-                    ? 'bg-[#1E5FA8] text-white shadow-xs'
-                    : 'text-[#163A5F] hover:bg-white/60'
+                    ? 'bg-[#1B5299] text-white shadow-xs'
+                    : 'text-[#0C2340] hover:bg-white/60'
                 }`}
               >
                 <Lightbulb size={16} />
                 <span>Tips Sosial</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  contentTab === 'tips' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                  contentTab === 'tips' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1B5299]'
                 }`}>
                   {contentData.tips.length}
                 </span>
@@ -3918,14 +3924,14 @@ export default function AdminPanel() {
                 onClick={() => setContentTab('articles')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                   contentTab === 'articles'
-                    ? 'bg-[#1E5FA8] text-white shadow-xs'
-                    : 'text-[#163A5F] hover:bg-white/60'
+                    ? 'bg-[#1B5299] text-white shadow-xs'
+                    : 'text-[#0C2340] hover:bg-white/60'
                 }`}
               >
                 <FileText size={16} />
                 <span>Artikel Informasi</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  contentTab === 'articles' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                  contentTab === 'articles' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1B5299]'
                 }`}>
                   {contentData.articles.length}
                 </span>
@@ -3936,14 +3942,14 @@ export default function AdminPanel() {
                 onClick={() => setContentTab('videos')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                   contentTab === 'videos'
-                    ? 'bg-[#1E5FA8] text-white shadow-xs'
-                    : 'text-[#163A5F] hover:bg-white/60'
+                    ? 'bg-[#1B5299] text-white shadow-xs'
+                    : 'text-[#0C2340] hover:bg-white/60'
                 }`}
               >
                 <Video size={16} />
                 <span>Video Edukasi</span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                  contentTab === 'videos' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                  contentTab === 'videos' ? 'bg-white/20 text-white' : 'bg-[#D2E4F7] text-[#1B5299]'
                 }`}>
                   {contentData.videos.length}
                 </span>
@@ -3956,15 +3962,15 @@ export default function AdminPanel() {
             {contentTab === 'tips' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Form Tambah Tips (Col 1) */}
-                <div className="lg:col-span-1 bg-white border border-[#C5DDF6] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
-                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#163A5F]">
-                    <Plus size={18} className="text-[#1E5FA8]" />
+                <div className="lg:col-span-1 bg-white border border-[#D1E3F5] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
+                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#0C2340]">
+                    <Plus size={18} className="text-[#1B5299]" />
                     <span>Tambah Tips Sosial Baru</span>
                   </div>
 
                   <form onSubmit={handleAddTip} className="space-y-4">
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Kategori Konflik / Topik
                       </label>
                       <select
@@ -3972,7 +3978,7 @@ export default function AdminPanel() {
                         onChange={(e) =>
                           setNewTipForm((prev) => ({ ...prev, category: e.target.value }))
                         }
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       >
                         <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
                         <option value="Komunikasi Asertif">Komunikasi Asertif</option>
@@ -3983,7 +3989,7 @@ export default function AdminPanel() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Judul Tips
                       </label>
                       <input
@@ -3994,12 +4000,12 @@ export default function AdminPanel() {
                           setNewTipForm((prev) => ({ ...prev, title: e.target.value }))
                         }
                         placeholder="Contoh: Mengatur Napas Saat Tegang"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Deskripsi / Panduan Praktis
                       </label>
                       <textarea
@@ -4010,13 +4016,13 @@ export default function AdminPanel() {
                           setNewTipForm((prev) => ({ ...prev, description: e.target.value }))
                         }
                         placeholder="Tuliskan uraian tips praktis yang ringkas dan mudah dipahami oleh siswa..."
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                      className="w-full bg-[#1B5299] hover:bg-[#133E75] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                     >
                       <Plus size={16} />
                       <span>Simpan Tips Baru</span>
@@ -4027,7 +4033,7 @@ export default function AdminPanel() {
                 {/* List Tips Tersedia (Col 2-3) */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#0C2340]">
                       Daftar Tips Aktif ({contentData.tips.length})
                     </span>
                     <span className="text-xs text-[#6B8BA4]">
@@ -4039,11 +4045,11 @@ export default function AdminPanel() {
                     {contentData.tips.map((tip) => (
                       <div
                         key={tip.id}
-                        className="bg-white border border-[#C5DDF6] rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col justify-between space-y-3"
+                        className="bg-white border border-[#D1E3F5] rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col justify-between space-y-3"
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-1.5">
-                            <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                            <span className="bg-[#E6F1FC] text-[#1B5299] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                               {tip.category}
                             </span>
                             <button
@@ -4055,10 +4061,10 @@ export default function AdminPanel() {
                               <Trash2 size={15} />
                             </button>
                           </div>
-                          <h4 className="font-extrabold text-sm sm:text-base text-[#163A5F]">
+                          <h4 className="font-extrabold text-sm sm:text-base text-[#0C2340]">
                             {tip.title}
                           </h4>
-                          <p className="text-xs text-[#4A6382] mt-1 leading-relaxed">
+                          <p className="text-xs text-[#3E5771] mt-1 leading-relaxed">
                             {tip.description}
                           </p>
                         </div>
@@ -4078,15 +4084,15 @@ export default function AdminPanel() {
             {contentTab === 'articles' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Form Tambah Artikel (Col 1) */}
-                <div className="lg:col-span-1 bg-white border border-[#C5DDF6] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
-                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#163A5F]">
-                    <Plus size={18} className="text-[#1E5FA8]" />
+                <div className="lg:col-span-1 bg-white border border-[#D1E3F5] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
+                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#0C2340]">
+                    <Plus size={18} className="text-[#1B5299]" />
                     <span>Terbitkan Artikel Baru</span>
                   </div>
 
                   <form onSubmit={handleAddArticle} className="space-y-3.5">
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Kategori Artikel
                       </label>
                       <select
@@ -4094,7 +4100,7 @@ export default function AdminPanel() {
                         onChange={(e) =>
                           setNewArticleForm((prev) => ({ ...prev, category: e.target.value }))
                         }
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       >
                         <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
                         <option value="Komunikasi Asertif">Komunikasi Asertif</option>
@@ -4105,7 +4111,7 @@ export default function AdminPanel() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Judul Artikel
                       </label>
                       <input
@@ -4116,12 +4122,12 @@ export default function AdminPanel() {
                           setNewArticleForm((prev) => ({ ...prev, title: e.target.value }))
                         }
                         placeholder="Contoh: Mengatasi Rasa Canggung Berbicara di Depan Umum"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Estimasi Waktu Baca
                       </label>
                       <input
@@ -4131,12 +4137,12 @@ export default function AdminPanel() {
                           setNewArticleForm((prev) => ({ ...prev, readTime: e.target.value }))
                         }
                         placeholder="3 menit"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Ringkasan Singkat (Excerpt)
                       </label>
                       <textarea
@@ -4146,12 +4152,12 @@ export default function AdminPanel() {
                           setNewArticleForm((prev) => ({ ...prev, excerpt: e.target.value }))
                         }
                         placeholder="Ringkasan 1-2 kalimat untuk kartu depan..."
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Isi Lengkap Artikel (Pisahkan Paragraf dengan Enter 2x)
                       </label>
                       <textarea
@@ -4162,13 +4168,13 @@ export default function AdminPanel() {
                           setNewArticleForm((prev) => ({ ...prev, content: e.target.value }))
                         }
                         placeholder="Paragraf 1: Pengantar artikel...&#10;&#10;Paragraf 2: Uraian dan langkah psikologis...&#10;&#10;Paragraf 3: Kesimpulan dan dorongan semangat..."
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                      className="w-full bg-[#1B5299] hover:bg-[#133E75] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                     >
                       <Plus size={16} />
                       <span>Terbitkan Artikel</span>
@@ -4179,7 +4185,7 @@ export default function AdminPanel() {
                 {/* List Artikel Tersedia (Col 2-3) */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#0C2340]">
                       Daftar Artikel Tersedia ({contentData.articles.length})
                     </span>
                     <span className="text-xs text-[#6B8BA4]">
@@ -4191,11 +4197,11 @@ export default function AdminPanel() {
                     {contentData.articles.map((art) => (
                       <div
                         key={art.id}
-                        className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-3"
+                        className="bg-white border border-[#D1E3F5] rounded-2xl p-5 shadow-2xs space-y-3"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2">
-                            <span className="bg-[#E6F1FC] text-[#1E5FA8] text-xs font-bold px-3 py-0.5 rounded-full">
+                            <span className="bg-[#E6F1FC] text-[#1B5299] text-xs font-bold px-3 py-0.5 rounded-full">
                               {art.category}
                             </span>
                             <span className="text-xs text-[#6B8BA4]">
@@ -4213,10 +4219,10 @@ export default function AdminPanel() {
                         </div>
 
                         <div>
-                          <h4 className="font-extrabold text-base sm:text-lg text-[#163A5F]">
+                          <h4 className="font-extrabold text-base sm:text-lg text-[#0C2340]">
                             {art.title}
                           </h4>
-                          <p className="text-xs sm:text-sm text-[#4A6382] mt-1 leading-relaxed">
+                          <p className="text-xs sm:text-sm text-[#3E5771] mt-1 leading-relaxed">
                             {art.excerpt}
                           </p>
                         </div>
@@ -4242,15 +4248,15 @@ export default function AdminPanel() {
             {contentTab === 'videos' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Form Tambah Video (Col 1) */}
-                <div className="lg:col-span-1 bg-white border border-[#C5DDF6] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
-                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#163A5F]">
-                    <Plus size={18} className="text-[#1E5FA8]" />
+                <div className="lg:col-span-1 bg-white border border-[#D1E3F5] rounded-3xl p-6 shadow-xs space-y-4 h-fit">
+                  <div className="flex items-center gap-2 font-extrabold text-sm sm:text-base text-[#0C2340]">
+                    <Plus size={18} className="text-[#1B5299]" />
                     <span>Tambah Video Edukasi Baru</span>
                   </div>
 
                   <form onSubmit={handleAddVideo} className="space-y-3.5">
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Kategori Video
                       </label>
                       <select
@@ -4258,7 +4264,7 @@ export default function AdminPanel() {
                         onChange={(e) =>
                           setNewVideoForm((prev) => ({ ...prev, category: e.target.value }))
                         }
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       >
                         <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
                         <option value="Komunikasi Asertif">Komunikasi Asertif</option>
@@ -4269,7 +4275,7 @@ export default function AdminPanel() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Judul Video
                       </label>
                       <input
@@ -4280,12 +4286,12 @@ export default function AdminPanel() {
                           setNewVideoForm((prev) => ({ ...prev, title: e.target.value }))
                         }
                         placeholder="Contoh: 5 Cara Membangun Rasa Percaya Diri"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Link YouTube atau ID Video
                       </label>
                       <input
@@ -4296,7 +4302,7 @@ export default function AdminPanel() {
                           setNewVideoForm((prev) => ({ ...prev, youtubeUrl: e.target.value }))
                         }
                         placeholder="https://www.youtube.com/watch?v=... atau ID"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                       <span className="text-[11px] text-[#6B8BA4] mt-0.5 block">
                         Mendukung link lengkap YouTube atau kode 11 karakter ID.
@@ -4304,7 +4310,7 @@ export default function AdminPanel() {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Estimasi Durasi Video
                       </label>
                       <input
@@ -4314,12 +4320,12 @@ export default function AdminPanel() {
                           setNewVideoForm((prev) => ({ ...prev, duration: e.target.value }))
                         }
                         placeholder="5:20"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Deskripsi Singkat Video
                       </label>
                       <textarea
@@ -4329,12 +4335,12 @@ export default function AdminPanel() {
                           setNewVideoForm((prev) => ({ ...prev, description: e.target.value }))
                         }
                         placeholder="Jelaskan isi pokok video bimbingan ini..."
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-[#4A6382] mb-1">
+                      <label className="block text-xs font-bold text-[#3E5771] mb-1">
                         Poin Penting Video (Satu Poin per Baris)
                       </label>
                       <textarea
@@ -4344,13 +4350,13 @@ export default function AdminPanel() {
                           setNewVideoForm((prev) => ({ ...prev, keyTakeaways: e.target.value }))
                         }
                         placeholder="Poin 1: Asertif berarti jujur tanpa menyakiti teman&#10;Poin 2: Gunakan formula I-Message&#10;Poin 3: Jaga kontak mata yang ramah"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <button
                       type="submit"
-                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                      className="w-full bg-[#1B5299] hover:bg-[#133E75] text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                     >
                       <Plus size={16} />
                       <span>Simpan Video Edukasi</span>
@@ -4361,7 +4367,7 @@ export default function AdminPanel() {
                 {/* List Video Tersedia (Col 2-3) */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#0C2340]">
                       Daftar Video Tersedia ({contentData.videos.length})
                     </span>
                     <span className="text-xs text-[#6B8BA4]">
@@ -4373,7 +4379,7 @@ export default function AdminPanel() {
                     {contentData.videos.map((vid) => (
                       <div
                         key={vid.id}
-                        className="bg-white border border-[#C5DDF6] rounded-2xl overflow-hidden shadow-2xs flex flex-col justify-between"
+                        className="bg-white border border-[#D1E3F5] rounded-2xl overflow-hidden shadow-2xs flex flex-col justify-between"
                       >
                         <div>
                           {/* Mini Video Preview / Iframe */}
@@ -4388,7 +4394,7 @@ export default function AdminPanel() {
 
                           <div className="p-4 space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                              <span className="bg-[#E6F1FC] text-[#1B5299] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                                 {vid.category}
                               </span>
                               <span className="text-xs text-[#6B8BA4]">
@@ -4396,17 +4402,17 @@ export default function AdminPanel() {
                               </span>
                             </div>
 
-                            <h4 className="font-extrabold text-sm sm:text-base text-[#163A5F] leading-snug">
+                            <h4 className="font-extrabold text-sm sm:text-base text-[#0C2340] leading-snug">
                               {vid.title}
                             </h4>
 
-                            <p className="text-xs text-[#4A6382] line-clamp-2">
+                            <p className="text-xs text-[#3E5771] line-clamp-2">
                               {vid.description}
                             </p>
 
                             {Array.isArray(vid.keyTakeaways) && vid.keyTakeaways.length > 0 && (
                               <div className="pt-2 border-t border-[#F0F7FF]">
-                                <span className="text-[11px] font-bold text-[#1E5FA8] block mb-1">
+                                <span className="text-[11px] font-bold text-[#1B5299] block mb-1">
                                   Poin Penting:
                                 </span>
                                 <ul className="text-xs text-[#2B4C6F] space-y-1">
@@ -4454,17 +4460,17 @@ export default function AdminPanel() {
         {activeTab === 'learning_photos' && (
           <div className="space-y-6">
             {/* Header Banner */}
-            <div className="bg-white border border-[#C5DDF6] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="bg-white border border-[#D1E3F5] rounded-3xl p-6 sm:p-7 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2.5">
                   <span className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100">
                     <Brain size={24} />
                   </span>
-                  <h2 className="text-lg sm:text-xl font-extrabold text-[#163A5F]">
+                  <h2 className="text-lg sm:text-xl font-extrabold text-[#0C2340]">
                     Pembelajaran Berkelanjutan AI & Foto Referensi
                   </h2>
                 </div>
-                <p className="text-xs sm:text-sm text-[#4A6382] mt-1.5 leading-relaxed max-w-2xl">
+                <p className="text-xs sm:text-sm text-[#3E5771] mt-1.5 leading-relaxed max-w-2xl">
                   AI SociaCare belajar secara otomatis dari pola percakapan siswa dan menyimpannya ke database untuk diterapkan secara general ke seluruh pengguna. Admin juga dapat mengunggah foto referensi konseling agar AI dapat mengirimkannya ke siswa sebagai kartu edukasi visual.
                 </p>
               </div>
@@ -4477,7 +4483,7 @@ export default function AdminPanel() {
                     loadMemories();
                   }}
                   disabled={loadingPhotos || loadingMemories}
-                  className="bg-[#EBF4FD] hover:bg-[#DCEBFA] text-[#1E5FA8] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-full transition flex items-center gap-2 cursor-pointer border border-[#C5DDF6]"
+                  className="bg-[#EBF4FD] hover:bg-[#DCEBFA] text-[#1B5299] font-bold text-xs sm:text-sm px-4 py-2.5 rounded-full transition flex items-center gap-2 cursor-pointer border border-[#D1E3F5]"
                 >
                   <RefreshCw
                     size={15}
@@ -4527,14 +4533,14 @@ export default function AdminPanel() {
             </div>
 
             {/* Sub-Tab Switcher */}
-            <div className="flex items-center gap-2 p-1.5 bg-[#E8F2FC] rounded-2xl max-w-fit border border-[#C5DDF6]">
+            <div className="flex items-center gap-2 p-1.5 bg-[#EBF3FC] rounded-2xl max-w-fit border border-[#D1E3F5]">
               <button
                 type="button"
                 onClick={() => setLearningTab('photos')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                   learningTab === 'photos'
-                    ? 'bg-[#1E5FA8] text-white shadow-xs'
-                    : 'text-[#163A5F] hover:bg-white/60'
+                    ? 'bg-[#1B5299] text-white shadow-xs'
+                    : 'text-[#0C2340] hover:bg-white/60'
                 }`}
               >
                 <Image size={16} />
@@ -4543,7 +4549,7 @@ export default function AdminPanel() {
                   className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                     learningTab === 'photos'
                       ? 'bg-white/20 text-white'
-                      : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                      : 'bg-[#D2E4F7] text-[#1B5299]'
                   }`}
                 >
                   {photosList.length}
@@ -4555,8 +4561,8 @@ export default function AdminPanel() {
                 onClick={() => setLearningTab('memories')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-extrabold transition cursor-pointer ${
                   learningTab === 'memories'
-                    ? 'bg-[#1E5FA8] text-white shadow-xs'
-                    : 'text-[#163A5F] hover:bg-white/60'
+                    ? 'bg-[#1B5299] text-white shadow-xs'
+                    : 'text-[#0C2340] hover:bg-white/60'
                 }`}
               >
                 <Brain size={16} />
@@ -4565,7 +4571,7 @@ export default function AdminPanel() {
                   className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
                     learningTab === 'memories'
                       ? 'bg-white/20 text-white'
-                      : 'bg-[#D2E4F7] text-[#1E5FA8]'
+                      : 'bg-[#D2E4F7] text-[#1B5299]'
                   }`}
                 >
                   {memoriesList.length}
@@ -4579,9 +4585,9 @@ export default function AdminPanel() {
             {learningTab === 'photos' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Form Upload Foto (Col 1) */}
-                <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-                  <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-sm sm:text-base border-b border-[#F0F7FF] pb-3">
-                    <UploadCloud size={18} className="text-[#1E5FA8]" />
+                <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+                  <div className="flex items-center gap-2 text-[#0C2340] font-extrabold text-sm sm:text-base border-b border-[#F0F7FF] pb-3">
+                    <UploadCloud size={18} className="text-[#1B5299]" />
                     <span>Upload Foto Referensi Baru</span>
                   </div>
 
@@ -4595,12 +4601,12 @@ export default function AdminPanel() {
                         type="file"
                         accept="image/*"
                         onChange={handlePhotoFileSelect}
-                        className="w-full text-xs text-[#163A5F] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#E8F2FC] file:text-[#1E5FA8] hover:file:bg-[#D2E4F7] file:cursor-pointer cursor-pointer border border-[#C5DDF6] rounded-xl p-2 bg-[#F4F9FF]"
+                        className="w-full text-xs text-[#0C2340] file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-extrabold file:bg-[#EBF3FC] file:text-[#1B5299] hover:file:bg-[#D2E4F7] file:cursor-pointer cursor-pointer border border-[#D1E3F5] rounded-xl p-2 bg-[#F4F9FF]"
                       />
                     </div>
 
                     {photoForm.preview && (
-                      <div className="relative rounded-xl overflow-hidden border border-[#C5DDF6] bg-slate-900 max-h-48 flex items-center justify-center">
+                      <div className="relative rounded-xl overflow-hidden border border-[#D1E3F5] bg-slate-900 max-h-48 flex items-center justify-center">
                         <img
                           src={photoForm.preview}
                           alt="Preview Upload"
@@ -4635,7 +4641,7 @@ export default function AdminPanel() {
                           setPhotoForm((prev) => ({ ...prev, fileUrl: e.target.value }))
                         }
                         placeholder="https://... atau biarkan kosong jika upload file"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -4652,7 +4658,7 @@ export default function AdminPanel() {
                           setPhotoForm((prev) => ({ ...prev, title: e.target.value }))
                         }
                         placeholder="Contoh: Diagram Komunikasi Asertif"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -4666,7 +4672,7 @@ export default function AdminPanel() {
                         onChange={(e) =>
                           setPhotoForm((prev) => ({ ...prev, category: e.target.value }))
                         }
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       >
                         <option value="Hubungan Pertemanan">Hubungan Pertemanan</option>
                         <option value="Komunikasi Efektif">Komunikasi Efektif</option>
@@ -4691,14 +4697,14 @@ export default function AdminPanel() {
                           }))
                         }
                         placeholder="Jelaskan isi pesan foto agar AI memahami kapan foto ini harus dikirimkan dan cara menjelaskannya ke siswa..."
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
                     <button
                       type="submit"
                       disabled={uploadingPhoto}
-                      className="w-full bg-[#1E5FA8] hover:bg-[#15467E] disabled:opacity-60 text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                      className="w-full bg-[#1B5299] hover:bg-[#133E75] disabled:opacity-60 text-white text-xs sm:text-sm font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
                     >
                       {uploadingPhoto ? (
                         <>
@@ -4718,7 +4724,7 @@ export default function AdminPanel() {
                 {/* Grid Katalog Foto (Col 2-3) */}
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                    <span className="text-xs sm:text-sm font-extrabold text-[#0C2340]">
                       Katalog Foto Referensi Tersedia ({photosList.length})
                     </span>
                     <span className="text-xs text-[#6B8BA4]">
@@ -4727,7 +4733,7 @@ export default function AdminPanel() {
                   </div>
 
                   {photosList.length === 0 ? (
-                    <div className="bg-white border border-[#C5DDF6] rounded-2xl p-8 text-center text-slate-400 text-xs sm:text-sm">
+                    <div className="bg-white border border-[#D1E3F5] rounded-2xl p-8 text-center text-slate-400 text-xs sm:text-sm">
                       Belum ada foto referensi yang diunggah. Unggah foto pertamamu melalui formulir di sebelah kiri.
                     </div>
                   ) : (
@@ -4735,7 +4741,7 @@ export default function AdminPanel() {
                       {photosList.map((photo) => (
                         <div
                           key={photo.id}
-                          className="bg-white border border-[#C5DDF6] rounded-2xl overflow-hidden shadow-2xs flex flex-col justify-between transition hover:shadow-md"
+                          className="bg-white border border-[#D1E3F5] rounded-2xl overflow-hidden shadow-2xs flex flex-col justify-between transition hover:shadow-md"
                         >
                           <div>
                             {/* Gambar Preview dengan Button Zoom */}
@@ -4762,7 +4768,7 @@ export default function AdminPanel() {
 
                             <div className="p-4 space-y-2">
                               <div className="flex items-center justify-between">
-                                <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
+                                <span className="bg-[#E6F1FC] text-[#1B5299] text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                                   {photo.category}
                                 </span>
                                 <span className="font-mono text-slate-400 text-[10px]">
@@ -4770,11 +4776,11 @@ export default function AdminPanel() {
                                 </span>
                               </div>
 
-                              <h4 className="font-extrabold text-sm sm:text-base text-[#163A5F] leading-snug">
+                              <h4 className="font-extrabold text-sm sm:text-base text-[#0C2340] leading-snug">
                                 {photo.title}
                               </h4>
 
-                              <p className="text-xs text-[#4A6382] leading-relaxed line-clamp-3">
+                              <p className="text-xs text-[#3E5771] leading-relaxed line-clamp-3">
                                 {photo.description}
                               </p>
 
@@ -4812,8 +4818,8 @@ export default function AdminPanel() {
             {learningTab === 'memories' && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Form Tambah Memori Manual (Col 1) */}
-                <div className="bg-white border border-[#C5DDF6] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
-                  <div className="flex items-center gap-2 text-[#163A5F] font-extrabold text-sm sm:text-base border-b border-[#F0F7FF] pb-3">
+                <div className="bg-white border border-[#D1E3F5] rounded-2xl p-5 sm:p-6 shadow-2xs space-y-4">
+                  <div className="flex items-center gap-2 text-[#0C2340] font-extrabold text-sm sm:text-base border-b border-[#F0F7FF] pb-3">
                     <Brain size={18} className="text-purple-600" />
                     <span>Tambah Memori Pembelajaran Manual</span>
                   </div>
@@ -4829,7 +4835,7 @@ export default function AdminPanel() {
                         onChange={(e) =>
                           setMemoryForm((prev) => ({ ...prev, topicId: e.target.value }))
                         }
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       >
                         <option value="general">Umum (Berlaku untuk Semua Topik)</option>
                         <option value="friendship">Hubungan Pertemanan yang Tidak Sehat</option>
@@ -4851,7 +4857,7 @@ export default function AdminPanel() {
                           setMemoryForm((prev) => ({ ...prev, category: e.target.value }))
                         }
                         placeholder="Contoh: Pola Penolakan Teman Sebaya"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -4868,7 +4874,7 @@ export default function AdminPanel() {
                           setMemoryForm((prev) => ({ ...prev, queryPattern: e.target.value }))
                         }
                         placeholder="Contoh: Siswa dijauhi teman sekelompok karena tidak mau ikut mencontek saat ujian..."
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -4888,7 +4894,7 @@ export default function AdminPanel() {
                           }))
                         }
                         placeholder="Tuliskan respon konseling terbaik yang harus diingat AI saat menghadapi pola masalah serupa..."
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -4904,7 +4910,7 @@ export default function AdminPanel() {
                           setMemoryForm((prev) => ({ ...prev, keyTakeaway: e.target.value }))
                         }
                         placeholder="Contoh: Kuatkan integritas moral siswa & validasi emosi"
-                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                        className="w-full bg-[#F4F9FF] border border-[#D1E3F5] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#0C2340] focus:outline-none focus:border-[#1E5FA8]"
                       />
                     </div>
 
@@ -4922,7 +4928,7 @@ export default function AdminPanel() {
                 <div className="lg:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-xs sm:text-sm font-extrabold text-[#163A5F]">
+                      <span className="text-xs sm:text-sm font-extrabold text-[#0C2340]">
                         Database Memori Terpelihara ({memoriesList.length})
                       </span>
                       <p className="text-xs text-[#6B8BA4]">
@@ -4932,7 +4938,7 @@ export default function AdminPanel() {
                   </div>
 
                   {memoriesList.length === 0 ? (
-                    <div className="bg-white border border-[#C5DDF6] rounded-2xl p-8 text-center text-slate-400 text-xs sm:text-sm">
+                    <div className="bg-white border border-[#D1E3F5] rounded-2xl p-8 text-center text-slate-400 text-xs sm:text-sm">
                       Belum ada memori pembelajaran yang tersimpan di database.
                     </div>
                   ) : (
@@ -4940,14 +4946,14 @@ export default function AdminPanel() {
                       {memoriesList.map((mem) => (
                         <div
                           key={mem.id}
-                          className="bg-white border border-[#C5DDF6] rounded-2xl p-4 sm:p-5 shadow-2xs space-y-2.5 hover:border-purple-300 transition"
+                          className="bg-white border border-[#D1E3F5] rounded-2xl p-4 sm:p-5 shadow-2xs space-y-2.5 hover:border-purple-300 transition"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <div className="flex items-center gap-2">
                               <span className="bg-purple-100 text-purple-700 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
                                 {mem.category || 'Pembelajaran AI'}
                               </span>
-                              <span className="bg-[#E6F1FC] text-[#1E5FA8] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              <span className="bg-[#E6F1FC] text-[#1B5299] text-[10px] font-bold px-2 py-0.5 rounded-full">
                                 Topik: {mem.topic_id}
                               </span>
                             </div>
@@ -4966,13 +4972,13 @@ export default function AdminPanel() {
                             <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">
                               Pola Pertanyaan / Masalah Siswa:
                             </div>
-                            <div className="text-xs sm:text-sm font-bold text-[#163A5F]">
+                            <div className="text-xs sm:text-sm font-bold text-[#0C2340]">
                               "{mem.query_pattern}"
                             </div>
                           </div>
 
                           <div className="bg-[#F8FBFF] p-3 rounded-xl border border-[#E2EEF9]">
-                            <div className="text-[11px] font-bold text-[#1E5FA8] uppercase tracking-wider mb-1">
+                            <div className="text-[11px] font-bold text-[#1B5299] uppercase tracking-wider mb-1">
                               Wawasan Solusi yang Dipelajari AI:
                             </div>
                             <div className="text-xs sm:text-sm text-[#2B4C6F] leading-relaxed">

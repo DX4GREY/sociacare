@@ -6,10 +6,13 @@
   html,
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-    background: linear-gradient(145deg, #d7e9fc 0%, #c6dff8 50%, #d9ecff 100%);
+    background-color: #F5F8FC;
+    color: #0C2340;
     min-height: 100dvh;
     margin: 0;
     padding: 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
@@ -17,17 +20,16 @@
   font-family: 'Caveat', 'Plus Jakarta Sans', cursive;
 }
 
-/* Custom subtle scrollbars */
+/* Subtle, polished scrollbars for dialogue reading */
 .chat-scroll {
-  --scrollbar-thumb: rgba(30, 95, 168, 0.22);
-  --scrollbar-thumb-hover: rgba(30, 95, 168, 0.4);
+  --scrollbar-thumb: rgba(27, 82, 153, 0.2);
+  --scrollbar-thumb-hover: rgba(27, 82, 153, 0.35);
   --scrollbar-track: transparent;
 
   scrollbar-width: thin;
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
-/* Legacy fallback for WebKit/Blink browsers without scrollbar-color */
 @supports not (scrollbar-color: auto) {
   .chat-scroll {
     scrollbar-width: auto;

@@ -32,6 +32,7 @@ export default function App() {
           {/* Fitur Lainnya (Tips Sosial, Artikel, Hubungi Guru BK, Riwayat Chat) */}
           <Route path="/extras" element={<ExtrasPage />} />
           <Route path="/extras/:tab" element={<ExtrasPage />} />
+          <Route path="/extras/:tab/:articleId" element={<ExtrasPage />} />
           <Route path="/extras/articles/:articleId" element={<ExtrasPage />} />
 
           {/* Halaman Penutup & Apresiasi Sesi */}

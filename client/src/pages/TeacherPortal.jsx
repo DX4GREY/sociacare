@@ -786,27 +786,27 @@ export default function TeacherPortal() {
   // =========================================================================
   if (!teacherToken) {
     return (
-      <div className="min-h-[100dvh] w-full bg-gradient-to-br from-[#0B2545] via-[#133E6E] to-[#1E5FA8] flex items-center justify-center p-5 text-white">
-        <div className="w-full max-w-md bg-white text-[#1E2F47] rounded-3xl p-7 sm:p-9 shadow-2xl space-y-6">
-          <div className="flex items-center justify-between border-b border-[#E8F2FC] pb-4">
+      <div className="min-h-[100dvh] w-full bg-[#F5F8FC] flex items-center justify-center p-5 text-[#0C2340]">
+        <div className="w-full max-w-md bg-white border-2 border-[#D1E3F5] rounded-3xl p-7 sm:p-9 shadow-float space-y-6">
+          <div className="flex items-center justify-between border-b border-[#E2EDF8] pb-4">
             <div className="flex items-center gap-3">
               <SociaHeartLogo size={42} />
               <div>
-                <h1 className="font-extrabold text-xl text-[#163A5F]">
+                <h1 className="font-extrabold text-xl text-[#0C2340] tracking-tight">
                   Portal Guru BK
                 </h1>
-                <p className="text-xs text-[#4A6382] font-semibold">
+                <p className="text-xs text-[#64748B] font-medium">
                   Bimbingan Konseling & Pendampingan Siswa
                 </p>
               </div>
             </div>
-            <div className="p-2.5 rounded-2xl bg-[#E8F2FC] text-[#1E5FA8]">
+            <div className="p-2.5 rounded-2xl bg-[#EBF3FC] text-[#1B5299]">
               <GraduationCap size={26} />
             </div>
           </div>
 
-          <p className="text-xs text-[#4A6382] leading-relaxed">
-            Halaman khusus untuk Guru Bimbingan Konseling (BK) memantau kondisi siswa, meninjau permohonan tatap muka manual, mengelola artikel bacaan & video edukasi, serta menangani situasi darurat siswa. Akun dibuat dan dikelola langsung oleh Administrator.
+          <p className="text-xs text-[#3E5771] leading-relaxed">
+            Halaman khusus untuk Guru Bimbingan Konseling (BK) memantau kondisi siswa, meninjau permohonan tatap muka manual, mengelola artikel bacaan & video edukasi, serta menangani situasi darurat siswa.
           </p>
 
           {loginError && (
@@ -817,7 +817,7 @@ export default function TeacherPortal() {
 
           <form onSubmit={handleTeacherLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-[#184B78] mb-1.5">
+              <label className="block text-xs font-bold text-[#0C2340] mb-1.5">
                 Username Guru BK
               </label>
               <input
@@ -826,12 +826,12 @@ export default function TeacherPortal() {
                 value={usernameInput}
                 onChange={(e) => setUsernameInput(e.target.value)}
                 placeholder="Masukkan username Guru BK"
-                className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-4 py-3 text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                className="w-full bg-[#F5F8FC] border border-[#D1E3F5] focus:border-[#1B5299] focus:bg-white rounded-2xl px-4 py-3 text-sm font-semibold text-[#0C2340] placeholder-[#94A3B8] focus:outline-none transition shadow-2xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#184B78] mb-1.5">
+              <label className="block text-xs font-bold text-[#0C2340] mb-1.5">
                 Password Guru BK
               </label>
               <input
@@ -840,28 +840,28 @@ export default function TeacherPortal() {
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
                 placeholder="Masukkan password Guru BK"
-                className="w-full bg-[#F4F9FF] border border-[#C2DCF5] rounded-xl px-4 py-3 text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                className="w-full bg-[#F5F8FC] border border-[#D1E3F5] focus:border-[#1B5299] focus:bg-white rounded-2xl px-4 py-3 text-sm font-semibold text-[#0C2340] placeholder-[#94A3B8] focus:outline-none transition shadow-2xs"
               />
             </div>
 
             <button
               type="submit"
               disabled={loadingLogin}
-              className="w-full bg-[#1E5FA8] hover:bg-[#15467E] disabled:opacity-60 text-white font-bold text-sm py-3.5 rounded-full shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full bg-[#1B5299] hover:bg-[#133E75] disabled:opacity-60 text-white font-bold text-sm py-3.5 rounded-2xl shadow-soft transition flex items-center justify-center gap-2 cursor-pointer"
             >
               <GraduationCap size={18} />
               <span>{loadingLogin ? 'Memverifikasi...' : 'Masuk ke Ruang Guru BK'}</span>
             </button>
           </form>
 
-          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-[#4A6382]">
-            <span className="text-[11px] text-slate-500">Hubungi Administrator jika belum memiliki akun.</span>
+          <div className="pt-2 border-t border-[#E2EDF8] flex items-center justify-between text-xs text-[#64748B]">
+            <span className="text-[11px]">Dikelola oleh Administrator Sekolah.</span>
             <Link
               to="/"
-              className="inline-flex items-center gap-1 font-bold text-[#1E5FA8] hover:underline"
+              className="inline-flex items-center gap-1 font-bold text-[#1B5299] hover:underline"
             >
               <ArrowLeft size={13} />
-              Beranda
+              Beranda Siswa
             </Link>
           </div>
         </div>
@@ -873,7 +873,7 @@ export default function TeacherPortal() {
   // MAIN DASHBOARD (PORTAL GURU BK)
   // =========================================================================
   return (
-    <div className="min-h-[100dvh] w-full bg-[#F2F7FC] text-[#1E2F47] flex flex-col">
+    <div className="min-h-[100dvh] w-full bg-[#F5F8FC] text-[#0C2340] flex flex-col">
       {/* Toast Notification */}
       {bannerMsg && (
         <div

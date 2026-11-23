@@ -11,9 +11,9 @@ export default function EmergencyModal() {
 
   return (
     <div className="fixed inset-0 bg-red-950/75 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white border-4 border-red-600 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl space-y-5 text-red-950 animate-in fade-in zoom-in-95">
+      <div className="bg-white border-2 border-red-600 rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-float space-y-5 text-red-950 animate-in fade-in zoom-in-95">
         <div className="flex items-start gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 animate-pulse shadow-lg">
+          <div className="w-12 h-12 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 animate-pulse shadow-md">
             <ShieldAlert size={28} />
           </div>
           <div>
@@ -30,13 +30,13 @@ export default function EmergencyModal() {
           {emergencyModalWarning}
         </div>
 
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-950 space-y-1">
-          <div className="font-extrabold">Layanan Bantuan Darurat 24 Jam:</div>
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 space-y-1.5">
+          <div className="font-extrabold text-amber-900">Layanan Bantuan Darurat 24 Jam Bebas Pulsa:</div>
           <div>
             • Hotline Kesehatan Jiwa Kemenkes: <strong>119 ext 8</strong>
           </div>
           <div>
-            • Layanan SAPA (Kekerasan/Darurat): <strong>129</strong>
+            • Layanan SAPA (Kekerasan & Perlindungan Anak/Remaja): <strong>129</strong>
           </div>
         </div>
 
@@ -54,7 +54,7 @@ export default function EmergencyModal() {
               }));
               navigate('/extras/counselor');
             }}
-            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs sm:text-sm py-3.5 px-5 rounded-full shadow-lg flex items-center justify-center gap-2 transition cursor-pointer"
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs sm:text-sm py-3.5 px-5 rounded-2xl shadow-soft flex items-center justify-center gap-2 transition cursor-pointer"
           >
             <PhoneCall size={16} />
             <span>Hubungi Konselor / Guru BK Sekarang</span>
@@ -62,7 +62,7 @@ export default function EmergencyModal() {
           <button
             type="button"
             onClick={() => setEmergencyModalWarning(null)}
-            className="bg-red-100 hover:bg-red-200 text-red-900 font-bold text-xs sm:text-sm py-3 px-5 rounded-full transition cursor-pointer"
+            className="bg-red-100 hover:bg-red-200 text-red-900 font-bold text-xs sm:text-sm py-3 px-5 rounded-2xl transition cursor-pointer"
           >
             Saya Mengerti
           </button>
