@@ -93,6 +93,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [chatError, setChatError] = useState(null);
   const [chatMenuOpen, setChatMenuOpen] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [reopenedClosedChat, setReopenedClosedChat] = useState(false);
@@ -312,6 +313,7 @@ export default function ChatPage() {
     if (!currentSession) return;
 
     setChatInput('');
+    setChatError(null);
     setReopenedClosedChat(false);
     setSendingMessage(true);
 
@@ -392,30 +394,16 @@ export default function ChatPage() {
         }
       }
 
-      // Jika belum ada balasan AI karena server/jaringan terputus, berikan balasan ramah otomatis
+      // Jika gagal (tidak ada balasan AI yang masuk), tampilkan pesan error asli tanpa fallback palsu
       if (!recovered) {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: Date.now() + 1,
-            sender: 'ai',
-            content: `Maaf ya ${currentUser?.name || 'Teman'}, sepertinya koneksi jaringan kita sempat terputus sejenak saat aku ingin membalas ceritamu. Tapi tenang, aku selalu siap mendengarkan dan mendukungmu! Boleh klik tombol di bawah untuk mengirim ulang pesanmu ya.`,
-            structured: {
-              checklist: [
-                'Periksa apakah koneksi internetmu stabil.',
-                'Klik tombol kirim ulang di bawah untuk mencoba kembali.'
-              ],
-              tipBox: {
-                title: 'Info Koneksi:',
-                text: 'Semua ceritamu tetap aman tersimpan. Jangan ragu untuk klik tombol kirim ulang di bawah ini.'
-              },
-              footerText: 'Mau mencoba kirim ulang pesan ini?',
-              quickReplies: [textToSend, 'Hubungi Guru BK', 'Tutup Pembicaraan'],
-              isClosing: false,
-              isEmergency: false,
-            },
-          },
-        ]);
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticUserMsg.id));
+        setChatInput(textToSend);
+        setChatError({
+          message:
+            err?.message ||
+            'Gagal terhubung ke layanan AI. Silakan periksa koneksi atau coba kirim ulang pesanmu.',
+          failedText: textToSend,
+        });
       }
     } finally {
       setSendingMessage(false);
@@ -1261,6 +1249,40 @@ export default function ChatPage() {
                     }`}
                   />
                   <span>SociaCare AI sedang merumuskan tanggapan...</span>
+                </div>
+              </div>
+            )}
+
+            {chatError && (
+              <div className="bg-red-50 border border-red-300 text-red-900 rounded-2xl p-4 shadow-soft flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start gap-2.5 text-xs sm:text-sm">
+                  <AlertTriangle size={18} className="text-red-600 shrink-0 mt-0.5" />
+                  <div className="space-y-0.5">
+                    <div className="font-extrabold text-red-800">
+                      Gagal Mendapatkan Balasan AI
+                    </div>
+                    <p className="text-red-700 leading-relaxed">{chatError.message}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                  {chatError.failedText && (
+                    <button
+                      type="button"
+                      disabled={sendingMessage}
+                      onClick={() => handleSendMessage(chatError.failedText)}
+                      className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer shadow-xs"
+                    >
+                      Coba Kirim Ulang
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setChatError(null)}
+                    className="p-1.5 rounded-xl text-red-500 hover:bg-red-100 transition cursor-pointer"
+                    title="Tutup pesan error"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
               </div>
             )}

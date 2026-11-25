@@ -621,12 +621,6 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
       getAiSettings(),
     ]);
 
-    await query(
-      `INSERT INTO chat_messages (session_id, user_id, sender, content, structured_json)
-       VALUES ($1, $2, 'user', $3, NULL)`,
-      [sessionId, session.user_id, content]
-    );
-
     let aiReply;
     try {
       aiReply = await generateCounselorResponse({
@@ -638,43 +632,36 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
         customSystemPersona: aiSettings.systemPersona,
       });
     } catch (aiErr) {
-      console.error('[AI Generation Fallback Triggered]', aiErr.message);
-      aiReply = {
-        content: `Halo ${user.name || 'Teman'}, terima kasih sudah berbagi cerita dengan jujur. Aku selalu ada di sini untuk mendengarkan dan mendukungmu. Boleh ceritakan lebih banyak tentang apa yang sedang kamu rasakan saat ini?`,
-        structured: {
-          checklist: [
-            'Tarik napas perlahan dan tenangkan pikiran sejenak.',
-            'Fokus pada langkah kecil yang paling bisa kamu lakukan hari ini.',
-            'Jangan ragu untuk bercerita ke teman dekat atau Guru BK jika terasa berat.',
-          ],
-          tipBox: {
-            title: 'Tips Pendukung:',
-            text: 'Setiap proses butuh waktu, yang terpenting kamu tidak memendam masalah ini sendirian.',
-          },
-          footerText: 'Bagaimana perasaanmu sekarang? Mau lanjut bercerita atau menghubungi Guru BK?',
-          quickReplies: ['Ceritakan lebih detail', 'Hubungi Guru BK', 'Tutup Pembicaraan'],
-          isClosing: false,
-          isEmergency: false,
-          emergencyLevel: 'normal',
-          emergencyReason: '',
-          emergencyWarning: '',
-        },
-        nextStage: Number(session.stage || 3) === 3 ? 35 : Number(session.stage || 3),
-        usage: {
-          modelName: 'emergency-counselor-fallback',
-          promptTokens: 0,
-          completionTokens: 0,
-          thoughtTokens: 0,
-          totalTokens: 0,
-          latencyMs: 1,
-        },
-      };
+      console.error('[AI Generation Error]', aiErr.message);
+      addServerLog(
+        'ERROR',
+        `Gagal menghasilkan balasan AI untuk ${user.name} (Sesi #${sessionId}): ${aiErr.message}`
+      );
+      return res.status(503).json({
+        error:
+          aiErr.userMessage ||
+          'Layanan AI sedang mengalami gangguan atau batas kuota sementara. Silakan coba kirim pesanmu lagi beberapa saat.',
+        detail: aiErr.message,
+        code: aiErr.code || 'AI_SERVICE_UNAVAILABLE',
+      });
     }
 
-    if (!aiReply.content || !aiReply.content.trim()) {
-      const dt = getCurrentDateTimeContext();
-      aiReply.content = resolveFallbackTimeOrGeneral(content, dt, user.name);
+    if (!aiReply || !aiReply.content || !aiReply.content.trim()) {
+      addServerLog(
+        'ERROR',
+        `Balasan AI kosong untuk ${user.name} (Sesi #${sessionId}).`
+      );
+      return res.status(502).json({
+        error: 'Layanan AI mengembalikan respons kosong. Silakan coba kirim pesanmu kembali.',
+        code: 'AI_EMPTY_RESPONSE',
+      });
     }
+
+    await query(
+      `INSERT INTO chat_messages (session_id, user_id, sender, content, structured_json)
+       VALUES ($1, $2, 'user', $3, NULL)`,
+      [sessionId, session.user_id, content]
+    );
 
     if (aiReply.usage) {
       await recordTokenUsage({
