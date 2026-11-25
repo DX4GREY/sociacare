@@ -36,10 +36,16 @@ import {
 export default function TeacherPortal() {
   const navigate = useNavigate();
   const [teacherToken, setTeacherToken] = useState(
-    () => localStorage.getItem('sociacare_teacher_token') || ''
+    () =>
+      sessionStorage.getItem('sociacare_teacher_token') ||
+      localStorage.getItem('sociacare_teacher_token') ||
+      ''
   );
   const [teacherUsername, setTeacherUsername] = useState(
-    () => localStorage.getItem('sociacare_teacher_username') || ''
+    () =>
+      sessionStorage.getItem('sociacare_teacher_username') ||
+      localStorage.getItem('sociacare_teacher_username') ||
+      ''
   );
 
   const [usernameInput, setUsernameInput] = useState('');
@@ -195,8 +201,10 @@ export default function TeacherPortal() {
         setLoginError(data.error || 'Username atau Password Guru BK tidak sesuai.');
         return;
       }
-      localStorage.setItem('sociacare_teacher_token', data.token);
-      localStorage.setItem('sociacare_teacher_username', data.username || usernameInput);
+      sessionStorage.setItem('sociacare_teacher_token', data.token);
+      sessionStorage.setItem('sociacare_teacher_username', data.username || usernameInput);
+      localStorage.removeItem('sociacare_teacher_token');
+      localStorage.removeItem('sociacare_teacher_username');
       setTeacherToken(data.token);
       setTeacherUsername(data.username || usernameInput);
       setPasswordInput('');
@@ -208,8 +216,11 @@ export default function TeacherPortal() {
   }
 
   function handleTeacherLogout() {
+    sessionStorage.removeItem('sociacare_teacher_token');
+    sessionStorage.removeItem('sociacare_teacher_username');
     localStorage.removeItem('sociacare_teacher_token');
     localStorage.removeItem('sociacare_teacher_username');
+    fetch('/api/teacher/logout', { method: 'POST' }).catch(() => {});
     setTeacherToken('');
     setTeacherUsername('');
     setStudents([]);

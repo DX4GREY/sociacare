@@ -71,7 +71,10 @@ function formatNum(num) {
 
 export default function AdminPanel() {
   const [adminToken, setAdminToken] = useState(
-    () => localStorage.getItem('sociacare_admin_token') || ''
+    () =>
+      sessionStorage.getItem('sociacare_admin_token') ||
+      localStorage.getItem('sociacare_admin_token') ||
+      ''
   );
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -610,7 +613,8 @@ export default function AdminPanel() {
         setLoginError(data.error || 'Login gagal.');
         return;
       }
-      localStorage.setItem('sociacare_admin_token', data.token);
+      sessionStorage.setItem('sociacare_admin_token', data.token);
+      localStorage.removeItem('sociacare_admin_token');
       setAdminToken(data.token);
       setPasswordInput('');
     } catch {
@@ -619,7 +623,9 @@ export default function AdminPanel() {
   }
 
   function handleAdminLogout() {
+    sessionStorage.removeItem('sociacare_admin_token');
     localStorage.removeItem('sociacare_admin_token');
+    fetch('/api/admin/logout', { method: 'POST' }).catch(() => {});
     setAdminToken('');
     setStats(null);
   }
@@ -875,35 +881,10 @@ export default function AdminPanel() {
 
   async function handleSaveServerConfig(e) {
     e.preventDefault();
-    try {
-      const res = await fetch('/api/admin/config', {
-        method: 'POST',
-        headers: adminHeaders(),
-        body: JSON.stringify({
-          geminiApiKey: newGeminiKey,
-          deepseekApiKey: newDeepseekKey,
-          deepseekModel: newDeepseekModel,
-          newAdminPassword: newAdminPwd,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.ok) {
-        if (data.newToken) {
-          localStorage.setItem('sociacare_admin_token', data.newToken);
-          setAdminToken(data.newToken);
-        }
-        setNewGeminiKey('');
-        setNewDeepseekKey('');
-        setNewDeepseekModel('');
-        setNewAdminPwd('');
-        showNotification('success', 'Konfigurasi server (.env) berhasil diperbarui!');
-        loadServerStats();
-      } else {
-        showNotification('error', data.error || 'Gagal menyimpan konfigurasi.');
-      }
-    } catch (err) {
-      showNotification('error', err.message);
-    }
+    showNotification(
+      'error',
+      'Modifikasi file .env dinonaktifkan via Web UI demi keamanan server (C2, H5). Silakan konfigurasi langsung file server/.env via SSH.'
+    );
   }
 
   async function handleDbMaintenance(action, confirmText) {
@@ -1112,26 +1093,11 @@ export default function AdminPanel() {
   }
 
   async function handleRunSql(customSql = null) {
-    const queryToRun = customSql !== null ? customSql : sqlQuery;
-    if (!queryToRun.trim()) return;
-    if (customSql !== null) setSqlQuery(customSql);
-
-    setRunningSql(true);
-    try {
-      const res = await fetch('/api/admin/sql', {
-        method: 'POST',
-        headers: adminHeaders(),
-        body: JSON.stringify({ sql: queryToRun }),
-      });
-      const data = await res.json();
-      setSqlResult(data);
-      loadServerStats();
-      loadUsers();
-    } catch (err) {
-      setSqlResult({ ok: false, error: err.message });
-    } finally {
-      setRunningSql(false);
-    }
+    setSqlResult({
+      ok: false,
+      error:
+        'Eksekusi raw SQL via Web UI dinonaktifkan demi keamanan server (C2). Silakan gunakan CLI psql atau sqlite3 via terminal SSH.',
+    });
   }
 
   const filteredUsers = usersList.filter((u) => {

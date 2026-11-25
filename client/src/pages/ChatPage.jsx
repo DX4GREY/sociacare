@@ -59,6 +59,20 @@ function formatChatMessageText(text) {
   });
 }
 
+function sanitizeSafeUrl(url) {
+  if (!url || typeof url !== 'string') return '#';
+  const trimmed = url.trim();
+  if (
+    trimmed.startsWith('/uploads/') ||
+    trimmed.startsWith('/infographics/') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('data:image/')
+  ) {
+    return trimmed;
+  }
+  return '#';
+}
+
 export default function ChatPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
@@ -214,7 +228,10 @@ export default function ChatPage() {
       const userIdParam = activeUser?.id
         ? `?userId=${encodeURIComponent(activeUser.id)}`
         : '';
-      const res = await fetch(`/api/sessions/${idToLoad}${userIdParam}`);
+      const devToken = localStorage.getItem('sociacare_device_token') || '';
+      const res = await fetch(`/api/sessions/${idToLoad}${userIdParam}`, {
+        headers: { 'x-device-token': devToken },
+      });
       const data = await res.json();
       if (data.session) {
         setCurrentSession(data.session);
@@ -307,10 +324,14 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, optimisticUserMsg]);
 
     try {
+      const devToken = localStorage.getItem('sociacare_device_token') || '';
       const res = await fetch(`/api/sessions/${currentSession.id}/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: textToSend }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-token': devToken,
+        },
+        body: JSON.stringify({ content: textToSend, deviceToken: devToken }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -351,8 +372,10 @@ export default function ChatPage() {
           const userIdParam = activeUser?.id
             ? `?userId=${encodeURIComponent(activeUser.id)}`
             : '';
+          const devToken = localStorage.getItem('sociacare_device_token') || '';
           const syncRes = await fetch(
-            `/api/sessions/${currentSession.id}${userIdParam}`
+            `/api/sessions/${currentSession.id}${userIdParam}`,
+            { headers: { 'x-device-token': devToken } }
           );
           const syncData = await syncRes.json();
           if (syncData.messages && syncData.messages.length > 0) {
@@ -1166,7 +1189,7 @@ export default function ChatPage() {
                               <span>Tampilan Penuh</span>
                             </button>
                             <a
-                              href={struct.infographic.url}
+                              href={sanitizeSafeUrl(struct.infographic.url)}
                               download={struct.infographic.downloadName || 'infografis-sociacare.svg'}
                               target="_blank"
                               rel="noopener noreferrer"
@@ -1522,7 +1545,7 @@ export default function ChatPage() {
                 {previewImage.caption}
               </span>
               <a
-                href={previewImage.url}
+                href={sanitizeSafeUrl(previewImage.url)}
                 download={previewImage.downloadName || 'infografis-sociacare.svg'}
                 target="_blank"
                 rel="noopener noreferrer"

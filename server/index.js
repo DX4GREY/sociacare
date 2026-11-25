@@ -5,6 +5,10 @@ const crypto = require('crypto');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
+const bcrypt = require('bcryptjs');
 const { initDatabase, query, getEngineInfo } = require('./db');
 const { TOPICS, SOCIAL_TIPS, ARTICLES, EDUCATIONAL_VIDEOS } = require('./counselorData');
 const {
@@ -24,6 +28,13 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
+// Session secret for HMAC token signing
+const SESSION_SECRET =
+  process.env.SESSION_SECRET ||
+  (process.env.ADMIN_PASSWORD
+    ? crypto.createHash('sha256').update(process.env.ADMIN_PASSWORD + 'sociacare-salt').digest('hex')
+    : crypto.randomBytes(32).toString('hex'));
+
 const serverLogs = [];
 function addServerLog(level, message) {
   const entry = {
@@ -38,9 +49,62 @@ function addServerLog(level, message) {
 
 addServerLog('INFO', 'SociaCare AI server initialized.');
 
-app.use(cors());
-app.use(express.json({ limit: '30mb' }));
-app.use('/uploads', express.static(uploadsDir));
+// Express hardening middlewares (M1, C4)
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
+app.use(express.json({ limit: '1mb' }));
+
+// Static uploads with security headers (M4)
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    next();
+  },
+  express.static(uploadsDir)
+);
+
+// Global & Auth Rate Limiting (M1)
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api/', apiLimiter);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak percobaan masuk. Silakan coba lagi dalam 15 menit.' },
+});
+app.use('/api/admin/login', authLimiter);
+app.use('/api/teacher/login', authLimiter);
+
+const messageLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Terlalu banyak pesan terkirim. Mohon tunggu sebentar.' },
+});
+app.use('/api/sessions/:sessionId/messages', messageLimiter);
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api') && !req.path.includes('/server-stats')) {
@@ -59,19 +123,83 @@ function parseStructured(raw) {
   }
 }
 
-function getAdminTokenSecret() {
-  const pwd = process.env.ADMIN_PASSWORD || 'admin123';
-  return crypto.createHash('sha256').update(`sociacare-admin:${pwd}`).digest('hex');
+// Cryptographic short-lived signed tokens (C1, C2)
+function createToken(payload, expiresInSeconds = 86400) {
+  const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const exp = Math.floor(Date.now() / 1000) + expiresInSeconds;
+  const body = Buffer.from(
+    JSON.stringify({ ...payload, exp, jti: crypto.randomBytes(16).toString('hex') })
+  ).toString('base64url');
+  const tokenData = `${header}.${body}`;
+  const sig = crypto.createHmac('sha256', SESSION_SECRET).update(tokenData).digest('base64url');
+  return `${tokenData}.${sig}`;
+}
+
+function verifyToken(token) {
+  if (!token || typeof token !== 'string') return null;
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  const [header, body, sig] = parts;
+  const tokenData = `${header}.${body}`;
+  const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(tokenData).digest('base64url');
+  const sigBuf = Buffer.from(sig);
+  const expBuf = Buffer.from(expectedSig);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+    return null;
+  }
+  try {
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8'));
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function getAuthUser(req) {
+  const token =
+    req.cookies?.sociacare_admin_token ||
+    req.cookies?.sociacare_teacher_token ||
+    req.headers['x-admin-token'] ||
+    req.headers['x-teacher-token'] ||
+    (req.headers.authorization?.startsWith('Bearer ')
+      ? req.headers.authorization.slice(7).trim()
+      : null);
+  return verifyToken(token);
 }
 
 function requireAdmin(req, res, next) {
-  const token = req.headers['x-admin-token'];
-  if (!token || token !== getAdminTokenSecret()) {
+  const user = getAuthUser(req);
+  if (!user || user.role !== 'admin') {
     return res
       .status(401)
       .json({ error: 'Tidak memiliki akses Admin. Silakan login kembali.' });
   }
+  req.user = user;
   next();
+}
+
+function requireTeacherOrAdmin(req, res, next) {
+  const user = getAuthUser(req);
+  if (!user || (user.role !== 'admin' && user.role !== 'guru_bk')) {
+    return res
+      .status(401)
+      .json({ error: 'Tidak memiliki akses Guru BK atau Admin. Silakan login kembali.' });
+  }
+  req.user = user;
+  next();
+}
+
+// User device token ownership check (C3)
+async function verifyUserOwnership(userId, deviceToken) {
+  if (!userId || !deviceToken) return null;
+  const res = await query(
+    `SELECT * FROM users WHERE id = $1 AND device_token = $2 LIMIT 1`,
+    [userId, deviceToken]
+  );
+  return res.rows[0] || null;
 }
 
 const DEFAULT_AI_SETTINGS = {
@@ -248,27 +376,21 @@ app.post('/api/users/:userId/wipe', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
     const deviceToken = String(
-      req.body?.deviceToken || req.headers['x-device-token'] || ''
+      req.headers['x-device-token'] || req.body?.deviceToken || ''
     ).trim();
 
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'User ID tidak valid.' });
     }
 
-    // Verifikasi kepemilikan data sebelum penghapusan
-    if (deviceToken) {
-      const userRes = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
-      if (
-        userRes.rows.length > 0 &&
-        userRes.rows[0].device_token &&
-        userRes.rows[0].device_token !== deviceToken
-      ) {
-        // Sinkronkan token perangkat aktif agar user tidak mengalami lockout/403
-        await query(
-          `UPDATE users SET device_token = $1, last_active_at = CURRENT_TIMESTAMP WHERE id = $2`,
-          [deviceToken, userId]
-        );
-      }
+    if (!deviceToken) {
+      return res.status(401).json({ error: 'Device token diperlukan.' });
+    }
+
+    // Verifikasi kepemilikan data (C3 IDOR fix: cegah overwrite dan tolak akses jika token tidak cocok)
+    const user = await verifyUserOwnership(userId, deviceToken);
+    if (!user) {
+      return res.status(403).json({ error: 'Akses ditolak: token perangkat tidak sesuai.' });
     }
 
     // Hapus seluruh data percakapan, sesi, dan profil siswa secara permanen
@@ -298,18 +420,14 @@ app.get('/api/users/:userId/sessions', async (req, res) => {
       return res.status(400).json({ error: 'User ID tidak valid.' });
     }
 
-    if (deviceToken) {
-      const userRes = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
-      if (
-        userRes.rows.length > 0 &&
-        userRes.rows[0].device_token &&
-        userRes.rows[0].device_token !== deviceToken
-      ) {
-        // Sinkronkan token perangkat aktif agar user tidak mengalami lockout/403
-        await query(
-          `UPDATE users SET device_token = $1, last_active_at = CURRENT_TIMESTAMP WHERE id = $2`,
-          [deviceToken, userId]
-        );
+    const staffUser = getAuthUser(req);
+    if (!staffUser) {
+      if (!deviceToken) {
+        return res.status(401).json({ error: 'Device token diperlukan.' });
+      }
+      const user = await verifyUserOwnership(userId, deviceToken);
+      if (!user) {
+        return res.status(403).json({ error: 'Akses ditolak: token perangkat tidak sesuai.' });
       }
     }
 
@@ -340,25 +458,19 @@ app.post('/api/users/:userId/sessions', async (req, res) => {
       return res.status(400).json({ error: 'User ID tidak valid.' });
     }
 
-    if (deviceToken) {
-      const userCheck = await query(`SELECT * FROM users WHERE id = $1`, [userId]);
-      if (
-        userCheck.rows.length > 0 &&
-        userCheck.rows[0].device_token &&
-        userCheck.rows[0].device_token !== deviceToken
-      ) {
-        return res.status(403).json({ error: 'Akses ditolak: token perangkat tidak sesuai.' });
-      }
+    if (!deviceToken) {
+      return res.status(401).json({ error: 'Device token diperlukan.' });
+    }
+
+    const user = await verifyUserOwnership(userId, deviceToken);
+    if (!user) {
+      return res.status(403).json({ error: 'Akses ditolak: token perangkat tidak sesuai.' });
     }
 
     const { topicId } = req.body || {};
     const topic = TOPICS.find((t) => t.id === topicId) || TOPICS[0];
 
-    const [userRes, aiSettings] = await Promise.all([
-      query(`SELECT * FROM users WHERE id = $1`, [userId]),
-      getAiSettings(),
-    ]);
-    const user = userRes.rows[0] || { name: 'Teman', class_name: '' };
+    const aiSettings = await getAiSettings();
 
     await query(
       `INSERT INTO chat_sessions (user_id, topic_id, topic_title, status, stage)
@@ -428,7 +540,9 @@ app.post('/api/users/:userId/sessions', async (req, res) => {
 app.get('/api/sessions/:sessionId', async (req, res) => {
   try {
     const sessionId = Number(req.params.sessionId);
-    const userId = Number(req.query.userId || 0);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.query.deviceToken || ''
+    ).trim();
 
     const sessionRes = await query(`SELECT * FROM chat_sessions WHERE id = $1`, [
       sessionId,
@@ -438,34 +552,15 @@ app.get('/api/sessions/:sessionId', async (req, res) => {
     }
 
     const session = sessionRes.rows[0];
-    if (userId > 0 && Number(session.user_id) !== userId) {
-      // Periksa apakah user memiliki sesi sendiri yang lebih relevan
-      const userOwnedSession = await query(
-        `SELECT id FROM chat_sessions WHERE user_id = $1 ORDER BY id DESC LIMIT 1`,
-        [userId]
-      );
-      if (userOwnedSession.rows.length > 0) {
-        // Alihkan secara transparan ke sesi milik user tersebut
-        const fallbackSessionRes = await query(`SELECT * FROM chat_sessions WHERE id = $1`, [
-          userOwnedSession.rows[0].id,
-        ]);
-        if (fallbackSessionRes.rows.length > 0) {
-          const fallbackSession = fallbackSessionRes.rows[0];
-          const [messagesRes, userRes] = await Promise.all([
-            query(`SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY id ASC`, [
-              fallbackSession.id,
-            ]),
-            query(`SELECT * FROM users WHERE id = $1`, [userId]),
-          ]);
-          return res.json({
-            session: fallbackSession,
-            user: userRes.rows[0] || null,
-            messages: messagesRes.rows.map((m) => ({
-              ...m,
-              structured: parseStructured(m.structured_json),
-            })),
-          });
-        }
+    const staffUser = getAuthUser(req);
+
+    if (!staffUser) {
+      if (!deviceToken) {
+        return res.status(401).json({ error: 'Device token diperlukan untuk melihat sesi konseling.' });
+      }
+      const user = await verifyUserOwnership(session.user_id, deviceToken);
+      if (!user) {
+        return res.status(403).json({ error: 'Akses ditolak: Anda tidak memiliki izin untuk sesi konseling ini.' });
       }
     }
 
@@ -493,9 +588,16 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
   try {
     const sessionId = Number(req.params.sessionId);
     const content = String(req.body?.content || '').trim().slice(0, 2000);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.body?.deviceToken || ''
+    ).trim();
 
     if (!content) {
       return res.status(400).json({ error: 'Pesan tidak boleh kosong.' });
+    }
+
+    if (!deviceToken) {
+      return res.status(401).json({ error: 'Device token diperlukan.' });
     }
 
     const sessionRes = await query(`SELECT * FROM chat_sessions WHERE id = $1`, [
@@ -506,14 +608,18 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
     }
     const session = sessionRes.rows[0];
 
-    const [userRes, historyRes, aiSettings] = await Promise.all([
-      query(`SELECT * FROM users WHERE id = $1`, [session.user_id]),
+    // Verifikasi kepemilikan sesi (C3)
+    const user = await verifyUserOwnership(session.user_id, deviceToken);
+    if (!user) {
+      return res.status(403).json({ error: 'Akses ditolak: Anda bukan pemilik sesi konseling ini.' });
+    }
+
+    const [historyRes, aiSettings] = await Promise.all([
       query(`SELECT * FROM chat_messages WHERE session_id = $1 ORDER BY id ASC`, [
         sessionId,
       ]),
       getAiSettings(),
     ]);
-    const user = userRes.rows[0] || { name: 'Pengguna', class_name: '' };
 
     await query(
       `INSERT INTO chat_messages (session_id, user_id, sender, content, structured_json)
@@ -635,7 +741,7 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
       ]
     );
 
-    // Rekam pembelajaran AI secara asinkron dari percakapan nyata (Continuous Learning Model ke DB)
+    // Rekam pembelajaran AI (H4 fix: dinonaktifkan otomatis untuk mencegah kebocoran data)
     recordConversationLearning({
       topicId: session.topic_id,
       userMessage: content,
@@ -679,21 +785,31 @@ app.post('/api/sessions/:sessionId/messages', async (req, res) => {
 app.delete('/api/sessions/:sessionId', async (req, res) => {
   try {
     const sessionId = Number(req.params.sessionId);
-    const userId = Number(req.query.userId || 0);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.query.deviceToken || ''
+    ).trim();
 
-    if (userId > 0) {
-      await query(`DELETE FROM chat_messages WHERE session_id = $1 AND user_id = $2`, [
-        sessionId,
-        userId,
-      ]);
-      await query(`DELETE FROM chat_sessions WHERE id = $1 AND user_id = $2`, [
-        sessionId,
-        userId,
-      ]);
-    } else {
-      await query(`DELETE FROM chat_messages WHERE session_id = $1`, [sessionId]);
-      await query(`DELETE FROM chat_sessions WHERE id = $1`, [sessionId]);
+    const sessionRes = await query(`SELECT * FROM chat_sessions WHERE id = $1`, [
+      sessionId,
+    ]);
+    if (sessionRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
     }
+    const session = sessionRes.rows[0];
+
+    const staffUser = getAuthUser(req);
+    if (!staffUser) {
+      if (!deviceToken) {
+        return res.status(401).json({ error: 'Device token diperlukan.' });
+      }
+      const user = await verifyUserOwnership(session.user_id, deviceToken);
+      if (!user) {
+        return res.status(403).json({ error: 'Akses ditolak: Anda bukan pemilik sesi konseling ini.' });
+      }
+    }
+
+    await query(`DELETE FROM chat_messages WHERE session_id = $1`, [sessionId]);
+    await query(`DELETE FROM chat_sessions WHERE id = $1`, [sessionId]);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: 'Gagal menghapus riwayat percakapan.' });
@@ -703,6 +819,21 @@ app.delete('/api/sessions/:sessionId', async (req, res) => {
 app.get('/api/users/:userId/counselor-requests', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.query.deviceToken || ''
+    ).trim();
+
+    const staffUser = getAuthUser(req);
+    if (!staffUser) {
+      if (!deviceToken) {
+        return res.status(401).json({ error: 'Device token diperlukan.' });
+      }
+      const user = await verifyUserOwnership(userId, deviceToken);
+      if (!user) {
+        return res.status(403).json({ error: 'Akses ditolak.' });
+      }
+    }
+
     const result = await query(
       `SELECT * FROM counselor_requests WHERE user_id = $1 ORDER BY id DESC`,
       [userId]
@@ -716,6 +847,18 @@ app.get('/api/users/:userId/counselor-requests', async (req, res) => {
 app.post('/api/users/:userId/counselor-requests', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.body?.deviceToken || ''
+    ).trim();
+
+    if (!deviceToken) {
+      return res.status(401).json({ error: 'Device token diperlukan.' });
+    }
+    const user = await verifyUserOwnership(userId, deviceToken);
+    if (!user) {
+      return res.status(403).json({ error: 'Akses ditolak.' });
+    }
+
     const topicTitle = String(req.body?.topicTitle || '').trim().slice(0, 150);
     const preferredSchedule = String(
       req.body?.preferredSchedule || 'Jam Istirahat / Sepulang Sekolah'
@@ -808,6 +951,18 @@ app.get('/api/content/extras', async (req, res) => {
 app.post('/api/users/:userId/saved-tips', async (req, res) => {
   try {
     const userId = Number(req.params.userId);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.body?.deviceToken || ''
+    ).trim();
+
+    if (!deviceToken) {
+      return res.status(401).json({ error: 'Device token diperlukan.' });
+    }
+    const user = await verifyUserOwnership(userId, deviceToken);
+    if (!user) {
+      return res.status(403).json({ error: 'Akses ditolak.' });
+    }
+
     const tipId = String(req.body?.tipId || '').trim().slice(0, 60);
     if (!tipId) {
       return res.status(400).json({ error: 'Tip ID tidak valid.' });
@@ -839,22 +994,48 @@ app.post('/api/users/:userId/saved-tips', async (req, res) => {
 });
 
 // ============================================================================
-// ADMIN PANEL API ROUTES (/api/admin/*)
-// Pengolahan Server, Penggunaan Token AI, Format Pembuka AI, & Database User
+// ADMIN & TEACHER AUTHENTICATION (C1, C2, C5)
 // ============================================================================
 
 app.post('/api/admin/login', (req, res) => {
   const password = String(req.body?.password || '').trim();
-  const expected = process.env.ADMIN_PASSWORD || 'admin123';
-  if (password !== expected) {
+  const expected = process.env.ADMIN_PASSWORD;
+
+  if (!expected || expected === 'admin123' || expected.length < 8) {
+    addServerLog('ERROR', 'ADMIN_PASSWORD belum dikonfigurasi dengan aman di .env.');
+    return res.status(500).json({
+      error: 'ADMIN_PASSWORD belum dikonfigurasi dengan aman di file .env server. Silakan set password kuat (min 12 karakter).',
+    });
+  }
+
+  const pBuf = Buffer.from(password);
+  const expBuf = Buffer.from(expected);
+  const isValid = pBuf.length === expBuf.length && crypto.timingSafeEqual(pBuf, expBuf);
+
+  if (!isValid) {
     addServerLog('WARN', 'Percobaan login Admin gagal (password salah).');
     return res.status(401).json({ error: 'Password Admin tidak sesuai.' });
   }
+
   addServerLog('ADMIN', 'Admin berhasil login ke panel kontrol.');
+  const token = createToken({ role: 'admin', username: 'admin', name: 'Administrator' });
+
+  res.cookie('sociacare_admin_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    maxAge: 24 * 3600 * 1000,
+  });
+
   res.json({
     ok: true,
-    token: getAdminTokenSecret(),
+    token,
   });
+});
+
+app.post('/api/admin/logout', (req, res) => {
+  res.clearCookie('sociacare_admin_token');
+  res.json({ ok: true });
 });
 
 app.post('/api/teacher/login', async (req, res) => {
@@ -866,7 +1047,6 @@ app.post('/api/teacher/login', async (req, res) => {
       return res.status(400).json({ error: 'Username dan password wajib diisi.' });
     }
 
-    // 1. Check database teachers table
     const teacherRes = await query(
       `SELECT * FROM teachers WHERE LOWER(username) = LOWER($1) AND is_active = 1`,
       [username]
@@ -874,23 +1054,34 @@ app.post('/api/teacher/login', async (req, res) => {
 
     let activeUser = null;
     let teacherName = 'Guru BK';
+    let teacherRole = 'guru_bk';
 
     if (teacherRes.rows.length > 0) {
       const teacher = teacherRes.rows[0];
-      if (teacher.password === password) {
+      let matches = false;
+
+      if (teacher.password && teacher.password.startsWith('$2')) {
+        matches = bcrypt.compareSync(password, teacher.password);
+      } else if (teacher.password) {
+        // Plaintext legacy verification with constant-time equality
+        const tBuf = Buffer.from(teacher.password);
+        const pBuf = Buffer.from(password);
+        if (tBuf.length === pBuf.length && crypto.timingSafeEqual(tBuf, pBuf)) {
+          matches = true;
+          // Transparently upgrade to bcrypt hash
+          try {
+            const hashed = bcrypt.hashSync(password, 12);
+            await query(`UPDATE teachers SET password = $1 WHERE id = $2`, [hashed, teacher.id]);
+          } catch (upgradeErr) {
+            console.warn('[Teacher Pwd Auto-Upgrade Warn]', upgradeErr.message);
+          }
+        }
+      }
+
+      if (matches) {
         activeUser = teacher.username;
         teacherName = teacher.name;
-      }
-    }
-
-    // 2. Fallback to Master Admin credentials if needed
-    if (!activeUser && process.env.ADMIN_PASSWORD) {
-      if (
-        (username.toLowerCase() === 'admin' || username.toLowerCase() === 'administrator') &&
-        password === process.env.ADMIN_PASSWORD
-      ) {
-        activeUser = 'admin';
-        teacherName = 'Administrator';
+        teacherRole = 'guru_bk';
       }
     }
 
@@ -899,17 +1090,35 @@ app.post('/api/teacher/login', async (req, res) => {
       return res.status(401).json({ error: 'Username atau Password Guru BK tidak sesuai.' });
     }
 
-    addServerLog('TEACHER', `Guru BK (${teacherName} / @${activeUser}) berhasil login ke portal bimbingan konseling.`);
+    addServerLog('TEACHER', `Guru BK (${teacherName} / @${activeUser}) berhasil login.`);
+    const token = createToken({
+      role: teacherRole,
+      username: activeUser,
+      name: teacherName,
+    });
+
+    res.cookie('sociacare_teacher_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 3600 * 1000,
+    });
+
     res.json({
       ok: true,
-      token: getAdminTokenSecret(),
-      role: 'guru_bk',
+      token,
+      role: teacherRole,
       username: activeUser,
       name: teacherName,
     });
   } catch (err) {
     res.status(500).json({ error: 'Gagal memproses login Guru BK.' });
   }
+});
+
+app.post('/api/teacher/logout', (req, res) => {
+  res.clearCookie('sociacare_teacher_token');
+  res.json({ ok: true });
 });
 
 app.get('/api/admin/server-stats', requireAdmin, async (req, res) => {
@@ -1196,53 +1405,10 @@ app.post('/api/admin/test-deepseek', requireAdmin, async (req, res) => {
 });
 
 app.post('/api/admin/config', requireAdmin, (req, res) => {
-  try {
-    const {
-      geminiApiKey,
-      deepseekApiKey,
-      deepseekModel,
-      newAdminPassword,
-    } = req.body || {};
-
-    if (typeof geminiApiKey === 'string' && geminiApiKey.trim()) {
-      process.env.GEMINI_API_KEY = geminiApiKey.trim();
-    }
-    if (typeof deepseekApiKey === 'string') {
-      process.env.DEEPSEEK_API_KEY = deepseekApiKey.trim();
-    }
-    if (typeof deepseekModel === 'string' && deepseekModel.trim()) {
-      process.env.DEEPSEEK_MODEL = deepseekModel.trim();
-    }
-    if (typeof newAdminPassword === 'string' && newAdminPassword.trim()) {
-      process.env.ADMIN_PASSWORD = newAdminPassword.trim();
-    }
-
-    const envPath = path.join(__dirname, '.env');
-    const envContent = [
-      `PORT=${process.env.PORT || 3001}`,
-      `DATABASE_URL=${
-        process.env.DATABASE_URL ||
-        'postgresql://postgres:postgres@127.0.0.1:5432/sociacare'
-      }`,
-      `GEMINI_API_KEY=${process.env.GEMINI_API_KEY || ''}`,
-      `GEMINI_MODEL=${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}`,
-      `GEMINI_FALLBACK_MODELS=${process.env.GEMINI_FALLBACK_MODELS || 'gemini-2.0-flash,gemini-1.5-flash'}`,
-      `DEEPSEEK_API_KEY=${process.env.DEEPSEEK_API_KEY || ''}`,
-      `DEEPSEEK_MODEL=${process.env.DEEPSEEK_MODEL || 'deepseek-chat'}`,
-      `ADMIN_PASSWORD=${process.env.ADMIN_PASSWORD || 'admin123'}`,
-      '',
-    ].join('\n');
-
-    fs.writeFileSync(envPath, envContent, 'utf8');
-    addServerLog('ADMIN', 'Konfigurasi server (.env) diperbarui oleh Admin.');
-
-    res.json({
-      ok: true,
-      newToken: getAdminTokenSecret(),
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  // Security fix (C2, H5): Dinonaktifkan demi keamanan. File .env tidak boleh dimodifikasi melalui Web API.
+  res.status(403).json({
+    error: 'Modifikasi konfigurasi (.env) via Web API dinonaktifkan demi keamanan server. Kelola file server/.env secara aman via SSH/CLI.',
+  });
 });
 
 app.post('/api/admin/db-maintenance', requireAdmin, async (req, res) => {
@@ -1298,7 +1464,8 @@ app.post('/api/admin/db-maintenance', requireAdmin, async (req, res) => {
     }
     res.status(400).json({ error: 'Aksi maintenance tidak dikenali.' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `db-maintenance error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menjalankan pemeliharaan database.' });
   }
 });
 
@@ -1330,11 +1497,12 @@ app.get('/api/admin/export', requireAdmin, async (req, res) => {
       },
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `export error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal mengekspor data server.' });
   }
 });
 
-app.get('/api/admin/users', requireAdmin, async (req, res) => {
+app.get('/api/admin/users', requireTeacherOrAdmin, async (req, res) => {
   try {
     const result = await query(`
       SELECT u.*,
@@ -1348,7 +1516,8 @@ app.get('/api/admin/users', requireAdmin, async (req, res) => {
     `);
     res.json({ users: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `load users error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat daftar pengguna.' });
   }
 });
 
@@ -1369,7 +1538,8 @@ app.post('/api/admin/users', requireAdmin, async (req, res) => {
     addServerLog('ADMIN', `Admin menambahkan user baru: ${name}`);
     res.status(201).json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `create user error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menambahkan data pengguna.' });
   }
 });
 
@@ -1391,7 +1561,8 @@ app.put('/api/admin/users/:id', requireAdmin, async (req, res) => {
     addServerLog('ADMIN', `Admin memperbarui data user #${userId} (${name})`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `update user error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memperbarui data pengguna.' });
   }
 });
 
@@ -1408,23 +1579,24 @@ app.delete('/api/admin/users/:id', requireAdmin, async (req, res) => {
     addServerLog('ADMIN', `Admin menghapus user #${userId} beserta seluruh datanya.`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete user error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus pengguna.' });
   }
 });
 
-// Toggle or Resolve User Emergency Status from Admin Panel
-app.post('/api/admin/users/:id/emergency', requireAdmin, async (req, res) => {
+// Toggle or Resolve User Emergency Status from Admin / Guru BK Panel
+app.post('/api/admin/users/:id/emergency', requireTeacherOrAdmin, async (req, res) => {
   try {
     const userId = Number(req.params.id);
     const isEmergency = Boolean(req.body?.isEmergency);
     const reason = String(
       req.body?.reason ||
-        (isEmergency ? 'Ditetapkan darurat oleh Admin' : '')
+        (isEmergency ? 'Ditetapkan darurat oleh Konselor / Guru BK' : '')
     ).trim();
     const warningAi = String(
       req.body?.warningAi ||
         (isEmergency
-          ? 'PERINGATAN DARURAT: Konselor / Admin menandai kondisi kamu memerlukan pendampingan segera. Kami siap membantumu sekarang.'
+          ? 'PERINGATAN DARURAT: Konselor / Guru BK menandai kondisi kamu memerlukan pendampingan segera. Kami siap membantumu sekarang.'
           : '')
     ).trim();
 
@@ -1439,7 +1611,7 @@ app.post('/api/admin/users/:id/emergency', requireAdmin, async (req, res) => {
          WHERE id = $3`,
         [reason, warningAi, userId]
       );
-      addServerLog('EMERGENCY', `Admin mengaktifkan status DARURAT untuk user #${userId}`);
+      addServerLog('EMERGENCY', `Petugas mengaktifkan status DARURAT untuk user #${userId}`);
     } else {
       await Promise.all([
         query(
@@ -1465,16 +1637,17 @@ app.post('/api/admin/users/:id/emergency', requireAdmin, async (req, res) => {
           [userId]
         ),
       ]);
-      addServerLog('ADMIN', `Admin menyelesaikan/mereset status darurat user #${userId}`);
+      addServerLog('ADMIN', `Petugas menyelesaikan status darurat user #${userId}`);
     }
 
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `emergency update error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memperbarui status darurat.' });
   }
 });
 
-app.get('/api/admin/users/:id/detail', requireAdmin, async (req, res) => {
+app.get('/api/admin/users/:id/detail', requireTeacherOrAdmin, async (req, res) => {
   try {
     const userId = Number(req.params.id);
     const [userRes, sessionsRes, messagesRes, bkRes, tokenRes, alertsRes] =
@@ -1518,12 +1691,13 @@ app.get('/api/admin/users/:id/detail', requireAdmin, async (req, res) => {
       emergencyAlerts: alertsRes.rows,
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `user detail error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat detail pengguna.' });
   }
 });
 
 // Endpoint riwayat sesi percakapan siswa (untuk Admin & Portal Guru BK)
-app.get('/api/admin/users/:id/history', requireAdmin, async (req, res) => {
+app.get('/api/admin/users/:id/history', requireTeacherOrAdmin, async (req, res) => {
   try {
     const userId = Number(req.params.id);
     const result = await query(
@@ -1537,12 +1711,13 @@ app.get('/api/admin/users/:id/history', requireAdmin, async (req, res) => {
     );
     res.json({ ok: true, sessions: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `user history error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat riwayat sesi pengguna.' });
   }
 });
 
 // Endpoint transkrip pesan dalam sesi tertentu (untuk Admin & Portal Guru BK)
-app.get('/api/admin/sessions/:id/messages', requireAdmin, async (req, res) => {
+app.get('/api/admin/sessions/:id/messages', requireTeacherOrAdmin, async (req, res) => {
   try {
     const sessionId = Number(req.params.id);
     const result = await query(
@@ -1557,11 +1732,12 @@ app.get('/api/admin/sessions/:id/messages', requireAdmin, async (req, res) => {
     }));
     res.json({ ok: true, messages });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `session messages error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat pesan percakapan sesi.' });
   }
 });
 
-app.get('/api/admin/sessions', requireAdmin, async (req, res) => {
+app.get('/api/admin/sessions', requireTeacherOrAdmin, async (req, res) => {
   try {
     const result = await query(`
       SELECT s.*, u.name AS user_name, u.class_name AS user_class,
@@ -1573,11 +1749,12 @@ app.get('/api/admin/sessions', requireAdmin, async (req, res) => {
     `);
     res.json({ sessions: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `sessions list error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat daftar sesi.' });
   }
 });
 
-app.get('/api/admin/counselor-requests', requireAdmin, async (req, res) => {
+app.get('/api/admin/counselor-requests', requireTeacherOrAdmin, async (req, res) => {
   try {
     const result = await query(`
       SELECT c.*, u.name AS user_name, u.class_name AS user_class
@@ -1587,11 +1764,12 @@ app.get('/api/admin/counselor-requests', requireAdmin, async (req, res) => {
     `);
     res.json({ requests: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `counselor requests error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat jadwal konseling.' });
   }
 });
 
-app.put('/api/admin/counselor-requests/:id', requireAdmin, async (req, res) => {
+app.put('/api/admin/counselor-requests/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const reqId = Number(req.params.id);
     const status = String(req.body?.status || 'Menunggu Konfirmasi Guru BK').trim();
@@ -1601,36 +1779,40 @@ app.put('/api/admin/counselor-requests/:id', requireAdmin, async (req, res) => {
       `UPDATE counselor_requests SET status = $1, counselor_reply = $2 WHERE id = $3`,
       [status, counselorReply, reqId]
     );
-    addServerLog('ADMIN', `Admin memperbarui status tiket Guru BK #${reqId} -> ${status}`);
+    addServerLog('ADMIN', `Status tiket Guru BK #${reqId} diperbarui -> ${status}`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `update counselor request error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memperbarui permohonan konseling.' });
   }
 });
 
-app.delete('/api/admin/counselor-requests/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/counselor-requests/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const reqId = Number(req.params.id);
     await query('DELETE FROM counselor_requests WHERE id = $1', [reqId]);
-    addServerLog('ADMIN', `Admin menghapus tiket Guru BK #${reqId}`);
+    addServerLog('ADMIN', `Tiket Guru BK #${reqId} dihapus`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete counselor request error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus tiket konseling.' });
   }
 });
 
 // ==========================================
-// TEACHER (GURU BK) ACCOUNT MANAGEMENT (BY ADMIN)
+// TEACHER (GURU BK) ACCOUNT MANAGEMENT (BY ADMIN) - (C5 Password Hashing & Leaks Fix)
 // ==========================================
 app.get('/api/admin/teachers', requireAdmin, async (req, res) => {
   try {
+    // C5 Fix: Exclude password from SELECT to prevent cleartext exposure
     const result = await query(
-      `SELECT id, name, username, password, nip, phone, role, is_active, created_at, updated_at
+      `SELECT id, name, username, nip, phone, role, is_active, created_at, updated_at
        FROM teachers ORDER BY id ASC`
     );
     res.json({ teachers: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `teachers query error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat daftar Guru BK.' });
   }
 });
 
@@ -1647,6 +1829,10 @@ app.post('/api/admin/teachers', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Nama, username, dan password Guru BK wajib diisi.' });
     }
 
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password Guru BK minimal harus 8 karakter demi keamanan.' });
+    }
+
     // Check duplicate username
     const dupCheck = await query(
       `SELECT id FROM teachers WHERE LOWER(username) = LOWER($1)`,
@@ -1656,16 +1842,20 @@ app.post('/api/admin/teachers', requireAdmin, async (req, res) => {
       return res.status(400).json({ error: `Username "${username}" sudah digunakan oleh akun lain.` });
     }
 
+    // C5 Fix: Hash password with bcrypt cost 12
+    const hashedPassword = bcrypt.hashSync(password, 12);
+
     await query(
       `INSERT INTO teachers (name, username, password, nip, phone, role, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [name, username, password, nip, phone, role, 1]
+      [name, username, hashedPassword, nip, phone, role, 1]
     );
 
     addServerLog('ADMIN', `Admin membuat akun Guru BK baru: ${name} (@${username})`);
     res.status(201).json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `create teacher error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal membuat akun Guru BK.' });
   }
 });
 
@@ -1693,11 +1883,15 @@ app.put('/api/admin/teachers/:id', requireAdmin, async (req, res) => {
     }
 
     if (password) {
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password minimal harus 8 karakter demi keamanan.' });
+      }
+      const hashedPassword = bcrypt.hashSync(password, 12);
       await query(
         `UPDATE teachers
          SET name = $1, username = $2, password = $3, nip = $4, phone = $5, is_active = $6, updated_at = CURRENT_TIMESTAMP
          WHERE id = $7`,
-        [name, username, password, nip, phone, isActive, teacherId]
+        [name, username, hashedPassword, nip, phone, isActive, teacherId]
       );
     } else {
       await query(
@@ -1711,7 +1905,8 @@ app.put('/api/admin/teachers/:id', requireAdmin, async (req, res) => {
     addServerLog('ADMIN', `Admin memperbarui akun Guru BK ID #${teacherId} (${name})`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `update teacher error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memperbarui akun Guru BK.' });
   }
 });
 
@@ -1722,56 +1917,38 @@ app.delete('/api/admin/teachers/:id', requireAdmin, async (req, res) => {
     addServerLog('ADMIN', `Admin menghapus akun Guru BK ID #${teacherId}`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete teacher error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus akun Guru BK.' });
   }
 });
 
-app.post('/api/admin/sql', requireAdmin, async (req, res) => {
-  const sqlText = String(req.body?.sql || '').trim();
-  if (!sqlText) {
-    return res.status(400).json({ error: 'Query SQL tidak boleh kosong.' });
-  }
-
-  const t0 = Date.now();
-  try {
-    const result = await query(sqlText);
-    const durationMs = Date.now() - t0;
-    addServerLog(
-      'SQL',
-      `Admin menjalankan query SQL (${durationMs} ms): ${sqlText.slice(0, 80)}`
-    );
-    res.json({
-      ok: true,
-      durationMs,
-      rowCount: result.rowCount,
-      rows: result.rows || [],
-    });
-  } catch (err) {
-    res.status(400).json({
-      ok: false,
-      durationMs: Date.now() - t0,
-      error: err.message,
-    });
-  }
+// C2 Fix: Endpoint SQL dinonaktifkan
+app.post('/api/admin/sql', requireAdmin, (req, res) => {
+  res.status(403).json({
+    ok: false,
+    error: 'Eksekusi query SQL mentah via Web API dinonaktifkan demi keamanan database (C2). Gunakan terminal psql / sqlite3 langsung via SSH.',
+  });
 });
 
 // ============================================================================
 // ADMIN CONTENT MANAGEMENT (TIPS, ARTIKEL, VIDEO)
 // ============================================================================
 
+// Strict YouTube ID extractor (M3 Fix)
 function extractYoutubeId(input) {
-  if (!input) return '';
-  const str = String(input).trim();
+  if (!input || typeof input !== 'string') return null;
+  const str = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(str)) {
+    return str;
+  }
   const match = str.match(
     /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/
   );
-  if (match && match[1]) return match[1];
-  if (/^[\w-]{11}$/.test(str)) return str;
-  return str;
+  return match && match[1] && /^[\w-]{11}$/.test(match[1]) ? match[1] : null;
 }
 
 // 1. TIPS
-app.post('/api/admin/content/tips', requireAdmin, async (req, res) => {
+app.post('/api/admin/content/tips', requireTeacherOrAdmin, async (req, res) => {
   try {
     const category = String(req.body?.category || 'Umum').trim().slice(0, 80);
     const title = String(req.body?.title || '').trim().slice(0, 200);
@@ -1805,26 +1982,28 @@ app.post('/api/admin/content/tips', requireAdmin, async (req, res) => {
       [tipId, category, title, summary, JSON.stringify(points)]
     );
 
-    addServerLog('ADMIN', `Admin menambahkan tips baru: "${title}" (${category})`);
+    addServerLog('ADMIN', `Tips baru ditambahkan: "${title}" (${category})`);
     res.status(201).json({ ok: true, id: tipId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `add tips error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menambahkan tips konseling.' });
   }
 });
 
-app.delete('/api/admin/content/tips/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/content/tips/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const tipId = String(req.params.id);
     await query(`DELETE FROM content_tips WHERE id = $1`, [tipId]);
-    addServerLog('ADMIN', `Admin menghapus tips ID: ${tipId}`);
+    addServerLog('ADMIN', `Tips dihapus ID: ${tipId}`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete tips error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus tips.' });
   }
 });
 
 // 2. ARTICLES
-app.post('/api/admin/content/articles', requireAdmin, async (req, res) => {
+app.post('/api/admin/content/articles', requireTeacherOrAdmin, async (req, res) => {
   try {
     const category = String(req.body?.category || 'Umum').trim().slice(0, 80);
     const title = String(req.body?.title || '').trim().slice(0, 200);
@@ -1853,25 +2032,27 @@ app.post('/api/admin/content/articles', requireAdmin, async (req, res) => {
       [artId, category, title, readTime, finalExcerpt, JSON.stringify(contentArray)]
     );
 
-    addServerLog('ADMIN', `Admin menambahkan artikel baru: "${title}" (${category})`);
+    addServerLog('ADMIN', `Artikel baru ditambahkan: "${title}" (${category})`);
     res.status(201).json({ ok: true, id: artId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `add article error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menambahkan artikel edukasi.' });
   }
 });
 
-app.delete('/api/admin/content/articles/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/content/articles/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const artId = String(req.params.id);
     await query(`DELETE FROM content_articles WHERE id = $1`, [artId]);
-    addServerLog('ADMIN', `Admin menghapus artikel ID: ${artId}`);
+    addServerLog('ADMIN', `Artikel dihapus ID: ${artId}`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete article error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus artikel.' });
   }
 });
 
-app.put('/api/admin/content/articles/:id', requireAdmin, async (req, res) => {
+app.put('/api/admin/content/articles/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const artId = String(req.params.id);
     const category = String(req.body?.category || 'Umum').trim().slice(0, 80);
@@ -1911,12 +2092,13 @@ app.put('/api/admin/content/articles/:id', requireAdmin, async (req, res) => {
     addServerLog('ADMIN', `Artikel diperbarui: "${title}" (ID: ${artId})`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `update article error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memperbarui artikel.' });
   }
 });
 
 // 3. VIDEOS
-app.post('/api/admin/content/videos', requireAdmin, async (req, res) => {
+app.post('/api/admin/content/videos', requireTeacherOrAdmin, async (req, res) => {
   try {
     const category = String(req.body?.category || 'Bimbingan Sosial').trim().slice(0, 80);
     const title = String(req.body?.title || '').trim().slice(0, 200);
@@ -1924,6 +2106,12 @@ app.post('/api/admin/content/videos', requireAdmin, async (req, res) => {
     const description = String(req.body?.description || '').trim();
     const rawYoutube = String(req.body?.youtubeUrlOrId || req.body?.youtubeId || '').trim();
     const youtubeId = extractYoutubeId(rawYoutube);
+
+    if (!title || !youtubeId) {
+      return res.status(400).json({
+        error: 'Judul dan URL/ID YouTube wajib diisi dan harus berupa ID YouTube 11 karakter yang valid.',
+      });
+    }
 
     let keyTakeaways = [];
     if (Array.isArray(req.body?.keyTakeaways)) {
@@ -1933,10 +2121,6 @@ app.post('/api/admin/content/videos', requireAdmin, async (req, res) => {
         .split('\n')
         .map((k) => k.replace(/^[•\-\*]\s*/, '').trim())
         .filter(Boolean);
-    }
-
-    if (!title || !youtubeId) {
-      return res.status(400).json({ error: 'Judul dan Link/ID YouTube wajib diisi.' });
     }
 
     const vidId = `vid-custom-${Date.now()}`;
@@ -1956,25 +2140,27 @@ app.post('/api/admin/content/videos', requireAdmin, async (req, res) => {
       ]
     );
 
-    addServerLog('ADMIN', `Admin menambahkan video edukasi baru: "${title}" (${category})`);
+    addServerLog('ADMIN', `Video edukasi baru ditambahkan: "${title}" (${category})`);
     res.status(201).json({ ok: true, id: vidId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `add video error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menambahkan video.' });
   }
 });
 
-app.delete('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/content/videos/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const vidId = String(req.params.id);
     await query(`DELETE FROM content_videos WHERE id = $1`, [vidId]);
-    addServerLog('ADMIN', `Admin menghapus video ID: ${vidId}`);
+    addServerLog('ADMIN', `Video dihapus ID: ${vidId}`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete video error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus video.' });
   }
 });
 
-app.put('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
+app.put('/api/admin/content/videos/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const vidId = String(req.params.id);
     const category = String(req.body?.category || 'Bimbingan Sosial').trim().slice(0, 80);
@@ -1984,6 +2170,12 @@ app.put('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
     const rawYoutube = String(req.body?.youtubeUrlOrId || req.body?.youtubeId || '').trim();
     const youtubeId = extractYoutubeId(rawYoutube);
 
+    if (!title || !youtubeId) {
+      return res.status(400).json({
+        error: 'Judul dan URL/ID YouTube wajib diisi dan harus berupa ID YouTube 11 karakter yang valid.',
+      });
+    }
+
     let keyTakeaways = [];
     if (Array.isArray(req.body?.keyTakeaways)) {
       keyTakeaways = req.body.keyTakeaways.map((k) => String(k).trim()).filter(Boolean);
@@ -1992,10 +2184,6 @@ app.put('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
         .split('\n')
         .map((k) => k.replace(/^[•\-\*]\s*/, '').trim())
         .filter(Boolean);
-    }
-
-    if (!title || !youtubeId) {
-      return res.status(400).json({ error: 'Judul dan Link/ID YouTube wajib diisi.' });
     }
 
     const embedUrl = `https://www.youtube-nocookie.com/embed/${youtubeId}`;
@@ -2016,7 +2204,8 @@ app.put('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
     addServerLog('ADMIN', `Video edukasi diperbarui: "${title}" (ID: ${vidId})`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `update video error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memperbarui video.' });
   }
 });
 
@@ -2024,7 +2213,7 @@ app.put('/api/admin/content/videos/:id', requireAdmin, async (req, res) => {
 // AI CONTINUOUS LEARNING & REFERENCE PHOTOS
 // ==========================================
 
-// 1. GET LEARNING MEMORIES
+// 1. GET LEARNING MEMORIES (Admin only)
 app.get('/api/admin/learning-memory', requireAdmin, async (req, res) => {
   try {
     const result = await query(
@@ -2032,15 +2221,16 @@ app.get('/api/admin/learning-memory', requireAdmin, async (req, res) => {
     );
     res.json({ memories: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `load learning memory error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat memori pembelajaran.' });
   }
 });
 
-// 2. ADD MANUAL LEARNING MEMORY
+// 2. ADD MANUAL LEARNING MEMORY (Curated by Admin only)
 app.post('/api/admin/learning-memory', requireAdmin, async (req, res) => {
   try {
     const topicId = String(req.body?.topicId || 'general').trim();
-    const category = String(req.body?.category || 'Manual Guru BK').trim();
+    const category = String(req.body?.category || 'Kurasi Guru BK / Admin').trim();
     const queryPattern = String(req.body?.queryPattern || '').trim();
     const learnedInsight = String(req.body?.learnedInsight || '').trim();
     const keyTakeaway = String(req.body?.keyTakeaway || '').trim();
@@ -2055,10 +2245,11 @@ app.post('/api/admin/learning-memory', requireAdmin, async (req, res) => {
       [topicId, category, queryPattern, learnedInsight, keyTakeaway]
     );
 
-    addServerLog('ADMIN', `Admin menambahkan memori pembelajaran AI baru: "${queryPattern.slice(0, 50)}..."`);
+    addServerLog('ADMIN', `Memori pembelajaran AI baru ditambahkan: "${queryPattern.slice(0, 50)}..."`);
     res.status(201).json({ ok: true, id: result.rows[0]?.id });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `add learning memory error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menambahkan memori pembelajaran.' });
   }
 });
 
@@ -2067,102 +2258,171 @@ app.delete('/api/admin/learning-memory/:id', requireAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     await query(`DELETE FROM ai_learning_memory WHERE id = $1`, [id]);
-    addServerLog('ADMIN', `Admin menghapus memori pembelajaran AI ID: ${id}`);
+    addServerLog('ADMIN', `Memori pembelajaran AI dihapus ID: ${id}`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete learning memory error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus memori pembelajaran.' });
   }
 });
 
+// Helper for magic bytes validation (M4 Fix)
+function validateImageMagicBytes(buffer) {
+  if (!buffer || buffer.length < 8) return null;
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+    return '.jpg';
+  }
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (
+    buffer[0] === 0x89 &&
+    buffer[1] === 0x50 &&
+    buffer[2] === 0x4e &&
+    buffer[3] === 0x47 &&
+    buffer[4] === 0x0d &&
+    buffer[5] === 0x0a &&
+    buffer[6] === 0x1a &&
+    buffer[7] === 0x0a
+  ) {
+    return '.png';
+  }
+  // WebP: RIFF .... WEBP
+  if (
+    buffer.toString('ascii', 0, 4) === 'RIFF' &&
+    buffer.toString('ascii', 8, 12) === 'WEBP'
+  ) {
+    return '.webp';
+  }
+  // GIF: GIF87a or GIF89a
+  if (
+    buffer.toString('ascii', 0, 6) === 'GIF87a' ||
+    buffer.toString('ascii', 0, 6) === 'GIF89a'
+  ) {
+    return '.gif';
+  }
+  return null;
+}
+
 // 4. GET REFERENCE PHOTOS
-app.get('/api/admin/photos', requireAdmin, async (req, res) => {
+app.get('/api/admin/photos', requireTeacherOrAdmin, async (req, res) => {
   try {
     const result = await query(
       `SELECT * FROM ai_reference_photos ORDER BY id DESC`
     );
     res.json({ photos: result.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `load photos error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat galeri foto.' });
   }
 });
 
-// 5. UPLOAD / ADD REFERENCE PHOTO
-app.post('/api/admin/photos', requireAdmin, async (req, res) => {
-  try {
-    const title = String(req.body?.title || '').trim().slice(0, 150);
-    const category = String(req.body?.category || 'Bimbingan Konseling').trim().slice(0, 80);
-    const description = String(req.body?.description || '').trim();
-    const tags = String(req.body?.tags || '').trim();
-    let fileUrl = String(req.body?.fileUrl || '').trim();
-    const base64Data = req.body?.base64Data; // data:image/png;base64,....
+// 5. UPLOAD / ADD REFERENCE PHOTO (Hardened with magic bytes & size check - M4)
+app.post(
+  '/api/admin/photos',
+  express.json({ limit: '10mb' }),
+  requireTeacherOrAdmin,
+  async (req, res) => {
+    try {
+      const title = String(req.body?.title || '').trim().slice(0, 150);
+      const category = String(req.body?.category || 'Bimbingan Konseling').trim().slice(0, 80);
+      const description = String(req.body?.description || '').trim();
+      const tags = String(req.body?.tags || '').trim();
+      let fileUrl = String(req.body?.fileUrl || '').trim();
+      const base64Data = req.body?.base64Data;
 
-    if (!title || (!fileUrl && !base64Data)) {
-      return res.status(400).json({ error: 'Judul dan file foto / URL foto wajib diisi.' });
-    }
-
-    let fileName = '';
-    let fileSize = 0;
-
-    if (base64Data) {
-      const matches = String(base64Data).match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-      let ext = '.png';
-      let buffer;
-      if (matches && matches.length === 3) {
-        const mime = matches[1].toLowerCase();
-        if (mime.includes('jpeg') || mime.includes('jpg')) ext = '.jpg';
-        else if (mime.includes('png')) ext = '.png';
-        else if (mime.includes('webp')) ext = '.webp';
-        else if (mime.includes('gif')) ext = '.gif';
-        buffer = Buffer.from(matches[2], 'base64');
-      } else {
-        buffer = Buffer.from(base64Data, 'base64');
+      if (!title || (!fileUrl && !base64Data)) {
+        return res.status(400).json({ error: 'Judul dan file foto / URL foto wajib diisi.' });
       }
 
-      fileName = `ref_${Date.now()}_${crypto.randomBytes(4).toString('hex')}${ext}`;
-      const filePath = path.join(uploadsDir, fileName);
-      fs.writeFileSync(filePath, buffer);
-      fileUrl = `/uploads/${fileName}`;
-      fileSize = buffer.length;
-    } else {
-      const cleanPath = fileUrl.split('?')[0].split('#')[0];
-      fileName = path.basename(cleanPath) || `photo_${Date.now()}.png`;
+      let fileName = '';
+      let fileSize = 0;
+
+      if (base64Data) {
+        let buffer;
+        const matches = String(base64Data).match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+        if (matches && matches.length === 3) {
+          buffer = Buffer.from(matches[2], 'base64');
+        } else {
+          buffer = Buffer.from(base64Data, 'base64');
+        }
+
+        // Limit size to max 5MB (M4 Fix)
+        if (buffer.length > 5 * 1024 * 1024) {
+          return res.status(400).json({ error: 'Ukuran file melebihi batas maksimal 5MB.' });
+        }
+
+        // Validate magic bytes (M4 Fix)
+        const ext = validateImageMagicBytes(buffer);
+        if (!ext) {
+          return res.status(400).json({
+            error: 'Format gambar tidak valid. Hanya file PNG, JPEG, WebP, dan GIF yang diizinkan.',
+          });
+        }
+
+        fileName = `ref_${Date.now()}_${crypto.randomBytes(6).toString('hex')}${ext}`;
+        const filePath = path.join(uploadsDir, fileName);
+        fs.writeFileSync(filePath, buffer);
+        fileUrl = `/uploads/${fileName}`;
+        fileSize = buffer.length;
+      } else {
+        // Disallow dangerous URL schemes (M3 Fix)
+        if (
+          !fileUrl.startsWith('/uploads/') &&
+          !fileUrl.startsWith('/infographics/') &&
+          !fileUrl.startsWith('https://')
+        ) {
+          return res.status(400).json({
+            error: 'URL foto harus diawali dengan https:// atau berada di folder /uploads/',
+          });
+        }
+        const cleanPath = fileUrl.split('?')[0].split('#')[0];
+        fileName = path.basename(cleanPath) || `photo_${Date.now()}.png`;
+      }
+
+      const photoId = `photo_${Date.now()}`;
+      await query(
+        `INSERT INTO ai_reference_photos (id, title, category, description, file_url, file_name, file_size, tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [photoId, title, category, description, fileUrl, fileName, fileSize, tags]
+      );
+
+      addServerLog('ADMIN', `Foto referensi konseling baru ditambahkan: "${title}" (${fileUrl})`);
+      res.status(201).json({ ok: true, id: photoId, fileUrl, fileName });
+    } catch (err) {
+      addServerLog('ERROR', `upload photo error: ${err.message}`);
+      res.status(500).json({ error: 'Gagal mengunggah foto referensi.' });
     }
-
-    const photoId = `photo_${Date.now()}`;
-    await query(
-      `INSERT INTO ai_reference_photos (id, title, category, description, file_url, file_name, file_size, tags)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [photoId, title, category, description, fileUrl, fileName, fileSize, tags]
-    );
-
-    addServerLog('ADMIN', `Admin mengunggah foto referensi konseling baru: "${title}" (${fileUrl})`);
-    res.status(201).json({ ok: true, id: photoId, fileUrl, fileName });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
-});
+);
 
-// 6. DELETE REFERENCE PHOTO
-app.delete('/api/admin/photos/:id', requireAdmin, async (req, res) => {
+// 6. DELETE REFERENCE PHOTO (Hardened against path traversal - C2)
+app.delete('/api/admin/photos/:id', requireTeacherOrAdmin, async (req, res) => {
   try {
     const photoId = String(req.params.id);
-    const existing = await query(`SELECT file_url FROM ai_reference_photos WHERE id = $1`, [photoId]);
+    const existing = await query(`SELECT file_url FROM ai_reference_photos WHERE id = $1`, [
+      photoId,
+    ]);
     if (existing.rows.length > 0) {
       const fUrl = existing.rows[0].file_url;
       if (fUrl && fUrl.startsWith('/uploads/')) {
-        const localPath = path.join(__dirname, fUrl);
-        if (fs.existsSync(localPath)) {
-          try {
-            fs.unlinkSync(localPath);
-          } catch {}
+        const safeBaseName = path.basename(fUrl);
+        const resolvedPath = path.resolve(uploadsDir, safeBaseName);
+        // Canonical containment check (C2 Fix)
+        if (resolvedPath.startsWith(uploadsDir + path.sep)) {
+          if (fs.existsSync(resolvedPath)) {
+            try {
+              fs.unlinkSync(resolvedPath);
+            } catch (_) {}
+          }
         }
       }
     }
     await query(`DELETE FROM ai_reference_photos WHERE id = $1`, [photoId]);
-    addServerLog('ADMIN', `Admin menghapus foto referensi ID: ${photoId}`);
+    addServerLog('ADMIN', `Foto referensi dihapus ID: ${photoId}`);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    addServerLog('ERROR', `delete photo error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus foto referensi.' });
   }
 });
 
@@ -2174,8 +2434,18 @@ app.get('*', (req, res, next) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
+// 4-argument Express error handler (M2 Fix: Prevent stack trace leaks in production)
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.parse.failed') {
+    return res.status(400).json({ error: 'Format JSON pada permintaan tidak valid.' });
+  }
+  console.error('[Unhandled Server Error]', err);
+  res.status(err.status || 500).json({ error: 'Terjadi kesalahan internal pada server.' });
+});
+
+// Bind Express strictly to 127.0.0.1 (C4 Fix: Close direct port 3001 exposure)
 initDatabase().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`[SociaCare AI] Production server running on http://localhost:${PORT}`);
+  app.listen(PORT, '127.0.0.1', () => {
+    console.log(`[SociaCare AI] Production server secured and running on http://127.0.0.1:${PORT}`);
   });
 });
