@@ -88,6 +88,24 @@ export default function ChatPage() {
   const creatingDefaultRef = useRef(false);
   const isInitialLoad = useRef(true);
 
+  function getSafeMediaUrl(url) {
+    if (!url || typeof url !== 'string') return '';
+    const trimmed = url.trim();
+    if (trimmed.startsWith('/uploads/') || trimmed.startsWith('/infographics/')) {
+      return trimmed;
+    }
+    try {
+      const parsed = new URL(trimmed);
+      if (
+        parsed.protocol === 'https:' ||
+        (parsed.protocol === 'http:' && (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1'))
+      ) {
+        return trimmed;
+      }
+    } catch {}
+    return '';
+  }
+
   // Auto-scroll on new message or typing change
   useEffect(() => {
     if (!messagesContainerRef.current) return;
@@ -211,7 +229,12 @@ export default function ChatPage() {
       const userIdParam = activeUser?.id
         ? `?userId=${encodeURIComponent(activeUser.id)}`
         : '';
-      const res = await fetch(`/api/sessions/${idToLoad}${userIdParam}`);
+      const devToken = localStorage.getItem('sociacare_device_token') || '';
+      const res = await fetch(`/api/sessions/${idToLoad}${userIdParam}`, {
+        headers: {
+          'x-device-token': devToken,
+        },
+      });
       const data = await res.json();
       if (data.session) {
         setCurrentSession(data.session);
@@ -304,10 +327,14 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, optimisticUserMsg]);
 
     try {
+      const devToken = localStorage.getItem('sociacare_device_token') || '';
       const res = await fetch(`/api/sessions/${currentSession.id}/messages`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: textToSend }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-token': devToken,
+        },
+        body: JSON.stringify({ content: textToSend, deviceToken: devToken }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -1102,7 +1129,7 @@ export default function ChatPage() {
                             className="relative group cursor-pointer mx-3 sm:mx-3.5 rounded-xl overflow-hidden border border-[#C5DDF6] bg-white shadow-2xs"
                           >
                             <img
-                              src={struct.infographic.url}
+                              src={getSafeMediaUrl(struct.infographic.url)}
                               alt={struct.infographic.title}
                               className="w-full max-h-56 object-cover object-top transition duration-300 group-hover:scale-102"
                               loading="lazy"
@@ -1125,8 +1152,8 @@ export default function ChatPage() {
                               <span>Tampilan Penuh</span>
                             </button>
                             <a
-                              href={struct.infographic.url}
-                              download={struct.infographic.downloadName || 'infografis-sociacare.svg'}
+                              href={getSafeMediaUrl(struct.infographic.url) || '#'}
+                              download={struct.infographic.downloadName || 'infografis-sociacare.png'}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-[#4A6382] hover:text-[#163A5F] flex items-center gap-1 cursor-pointer"
@@ -1315,7 +1342,7 @@ export default function ChatPage() {
             </div>
             <div className="flex-1 overflow-auto p-4 bg-slate-50 flex items-center justify-center">
               <img
-                src={previewImage.url}
+                src={getSafeMediaUrl(previewImage.url)}
                 alt={previewImage.title}
                 className="max-w-full max-h-[70vh] object-contain rounded-xl shadow-md border border-[#CFE3F8]"
               />
@@ -1325,8 +1352,8 @@ export default function ChatPage() {
                 {previewImage.caption}
               </span>
               <a
-                href={previewImage.url}
-                download={previewImage.downloadName || 'infografis-sociacare.svg'}
+                href={getSafeMediaUrl(previewImage.url) || '#'}
+                download={previewImage.downloadName || 'infografis-sociacare.png'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="bg-[#1E5FA8] hover:bg-[#15467E] text-white font-bold px-4 py-2 rounded-full flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"

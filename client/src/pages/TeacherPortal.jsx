@@ -151,6 +151,7 @@ export default function TeacherPortal() {
     return {
       'Content-Type': 'application/json',
       'x-admin-token': teacherToken,
+      'Authorization': `Bearer ${teacherToken}`,
     };
   }
 
@@ -554,7 +555,7 @@ export default function TeacherPortal() {
     const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
     if (match && match[1]) return match[1];
     if (/^[\w-]{11}$/.test(str)) return str;
-    return str;
+    return '';
   }
 
   function handleOpenVideoModal(mode, vid = null) {

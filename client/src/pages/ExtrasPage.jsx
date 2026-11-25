@@ -524,13 +524,19 @@ export default function ExtrasPage() {
                   </div>
 
                   <div className="relative w-full pb-[56.25%] bg-black">
-                    <iframe
-                      src={`https://www.youtube-nocookie.com/embed/${selectedVideo.youtubeId}?autoplay=1&rel=0`}
-                      title={selectedVideo.title}
-                      className="absolute inset-0 w-full h-full"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
+                    {/^[\w-]{11}$/.test(selectedVideo.youtubeId) ? (
+                      <iframe
+                        src={`https://www.youtube-nocookie.com/embed/${selectedVideo.youtubeId}?autoplay=1&rel=0`}
+                        title={selectedVideo.title}
+                        className="absolute inset-0 w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center text-white text-xs">
+                        Video tidak dapat dimuat (ID video tidak valid).
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-6 space-y-4">

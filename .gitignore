@@ -5,3 +5,4 @@ node_modules/
 client/dist/
 server/sociacare.sql.db
 .DS_Store
+security-report.md

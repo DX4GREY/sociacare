@@ -3209,22 +3209,9 @@ export default function AdminPanel() {
                             <div className="flex items-center justify-between">
                               <span className="text-[#4A6382] font-semibold">Password:</span>
                               <div className="flex items-center gap-1.5">
-                                <code className="bg-white px-2 py-0.5 rounded-md border border-[#C5DDF6] font-mono font-bold text-[#163A5F]">
-                                  {isVisible ? teacher.password : '••••••••'}
-                                </code>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setShowPasswordMap((prev) => ({
-                                      ...prev,
-                                      [teacher.id]: !prev[teacher.id],
-                                    }))
-                                  }
-                                  className="text-slate-400 hover:text-[#1E5FA8] p-1 transition cursor-pointer"
-                                  title={isVisible ? 'Sembunyikan Password' : 'Lihat Password'}
-                                >
-                                  {isVisible ? <EyeOff size={14} /> : <Eye size={14} />}
-                                </button>
+                                <span className="bg-white px-2 py-0.5 rounded-md border border-[#C5DDF6] font-mono text-xs text-[#163A5F]">
+                                  •••••••• (Tersimpan Terenkripsi Hash)
+                                </span>
                               </div>
                             </div>
 
@@ -4378,12 +4365,18 @@ export default function AdminPanel() {
                         <div>
                           {/* Mini Video Preview / Iframe */}
                           <div className="relative pb-[56.25%] bg-black">
-                            <iframe
-                              src={`https://www.youtube-nocookie.com/embed/${vid.youtubeId}`}
-                              title={vid.title}
-                              className="absolute inset-0 w-full h-full"
-                              allowFullScreen
-                            />
+                            {/^[\w-]{11}$/.test(vid.youtubeId) ? (
+                              <iframe
+                                src={`https://www.youtube-nocookie.com/embed/${vid.youtubeId}`}
+                                title={vid.title}
+                                className="absolute inset-0 w-full h-full"
+                                allowFullScreen
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center text-white text-xs">
+                                ID YouTube tidak valid
+                              </div>
+                            )}
                           </div>
 
                           <div className="p-4 space-y-2">

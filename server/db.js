@@ -199,8 +199,15 @@ async function initDatabase() {
     activeEngine = 'postgresql';
     console.log('[DB] Connected to PostgreSQL database (sociacare).');
   } catch (err) {
+    if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('sqlite')) {
+      console.warn('[DB WARNING] Gagal menghubungkan ke PostgreSQL:', err.message);
+      console.warn('[DB WARNING] Menggunakan fallback mesin SQL lokal (sociacare.sql.db). Pastikan database diamankan.');
+    }
     const dbPath = path.join(__dirname, 'sociacare.sql.db');
     sqliteDb = new DatabaseSync(dbPath);
+    try {
+      fs.chmodSync(dbPath, 0o600);
+    } catch {}
     const schemaSql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
     sqliteDb.exec('PRAGMA foreign_keys = ON;');
     sqliteDb.exec(schemaSql);

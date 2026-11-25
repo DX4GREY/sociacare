@@ -219,9 +219,15 @@ export function AppProvider({ children }) {
     if (e && e.stopPropagation) e.stopPropagation();
     if (!currentUser) return;
     try {
+      const devToken = getOrCreateDeviceToken();
       await fetch(
         `/api/sessions/${sessionId}?userId=${encodeURIComponent(currentUser.id)}`,
-        { method: 'DELETE' }
+        {
+          method: 'DELETE',
+          headers: {
+            'x-device-token': devToken,
+          },
+        }
       );
       await fetchUserSessions(currentUser.id);
       if (currentSession?.id === sessionId) {
@@ -235,10 +241,14 @@ export function AppProvider({ children }) {
   async function handleToggleBookmarkTip(tipId) {
     if (!currentUser) return;
     try {
+      const devToken = getOrCreateDeviceToken();
       const res = await fetch(`/api/users/${currentUser.id}/saved-tips`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipId }),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-token': devToken,
+        },
+        body: JSON.stringify({ tipId, deviceToken: devToken }),
       });
       const data = await res.json();
       if (data.savedTipIds) {
@@ -253,10 +263,14 @@ export function AppProvider({ children }) {
     if (e && e.preventDefault) e.preventDefault();
     if (!currentUser || !bkForm.message.trim()) return;
     try {
+      const devToken = getOrCreateDeviceToken();
       const res = await fetch(`/api/users/${currentUser.id}/counselor-requests`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bkForm),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-device-token': devToken,
+        },
+        body: JSON.stringify({ ...bkForm, deviceToken: devToken }),
       });
       const data = await res.json();
       if (data.requests) {
