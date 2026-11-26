@@ -110,7 +110,7 @@ export default function HomePage() {
               <span className="text-[#1B5299]">berat di sekolah</span> hari ini?
             </h1>
             <p className="text-base sm:text-lg text-[#3E5771] max-w-xl leading-relaxed pt-1">
-              Kamu tidak perlu memendamnya sendirian. SociaCare AI hadir sebagai sahabat sebaya yang mendengarkan, memvalidasi perasaanmu, dan membantumu menemukan langkah kecil yang menenangkan.
+              Punya masalah dengan teman atau hubungan di sekolah? Ceritakan di SociaCare AI. Kami hadir sebagai teman cerita yang membantu kamu memahami perasaan dan menemukan informasi serta saran sederhana.
             </p>
           </div>
 
@@ -203,7 +203,7 @@ export default function HomePage() {
                     onClick={() => navigate('/topics')}
                     className="w-full bg-[#1B5299] hover:bg-[#133E75] text-white text-sm sm:text-base font-bold py-3.5 px-6 rounded-2xl shadow-soft transition flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <span>Mulai Konseling Baru</span>
+                    <span>Bicara dengan SociaCare</span>
                     <ArrowRight size={18} />
                   </button>
 
