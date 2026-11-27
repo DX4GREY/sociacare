@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AppProvider } from './context/AppContext';
 import EmergencyModal from './components/EmergencyModal';
 import LogoutModal from './components/LogoutModal';
+import AnnouncementModal from './components/AnnouncementModal';
 import HomePage from './pages/HomePage';
 import TopicsPage from './pages/TopicsPage';
 import ChatPage from './pages/ChatPage';
@@ -18,6 +19,7 @@ export default function App() {
       <AppProvider>
         <EmergencyModal />
         <LogoutModal />
+        <AnnouncementModal mode="student" />
         <Routes>
           {/* Halaman Utama / Identitas Siswa */}
           <Route path="/" element={<HomePage />} />

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { SociaHeartLogo, StudentAvatar } from '../components/Illustrations';
+import AnnouncementModal from '../components/AnnouncementModal';
 import {
   GraduationCap,
   ShieldAlert,
@@ -885,6 +886,9 @@ export default function TeacherPortal() {
   // =========================================================================
   return (
     <div className="min-h-[100dvh] w-full bg-[#F5F8FC] text-[#0C2340] flex flex-col">
+      {/* Dialog Pengumuman / Pesan dari Admin */}
+      <AnnouncementModal mode="teacher" teacherToken={teacherToken} />
+
       {/* Toast Notification */}
       {bannerMsg && (
         <div

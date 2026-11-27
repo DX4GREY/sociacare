@@ -44,6 +44,9 @@ import {
   EyeOff,
   Lock,
   Phone,
+  Megaphone,
+  Send,
+  Pin,
 } from 'lucide-react';
 
 function formatBytes(bytes) {
@@ -208,6 +211,25 @@ export default function AdminPanel() {
     keyTakeaway: '',
   });
 
+  // Broadcast / Dialog Announcements State
+  const [announcementsList, setAnnouncementsList] = useState([]);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(false);
+  const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: '',
+    message: '',
+    targetType: 'all',
+    targetId: '',
+    displayMode: 'once',
+    severity: 'info',
+  });
+  const [announcementViewersModal, setAnnouncementViewersModal] = useState({
+    show: false,
+    loading: false,
+    announcement: null,
+    views: [],
+  });
+
   const notificationTimeoutRef = useRef(null);
 
   function showNotification(type, text) {
@@ -241,6 +263,7 @@ export default function AdminPanel() {
       loadContentData();
       loadPhotos();
       loadMemories();
+      loadAnnouncements();
     }
   }, [adminToken]);
 
@@ -255,6 +278,7 @@ export default function AdminPanel() {
         users: 'Database Siswa — Panel Admin | SociaCare',
         counseling: 'Sesi Chat & Guru BK — Panel Admin | SociaCare',
         teachers: 'Manajemen Akun Guru BK — Panel Admin | SociaCare',
+        announcements: 'Pesan & Dialog User — Panel Admin | SociaCare',
         content: 'Kelola Materi Edukasi — Panel Admin | SociaCare',
         learning_photos: 'Pembelajaran AI & Foto — Panel Admin | SociaCare',
         sql: 'SQL Studio — Panel Admin | SociaCare',
@@ -262,6 +286,126 @@ export default function AdminPanel() {
       document.title = tabTitles[activeTab] || 'Panel Kontrol Administrator | SociaCare';
     }
   }, [adminToken, activeTab]);
+
+  async function loadAnnouncements() {
+    setLoadingAnnouncements(true);
+    try {
+      const res = await fetch('/api/admin/announcements', { headers: adminHeaders() });
+      const data = await res.json();
+      if (data.announcements) {
+        setAnnouncementsList(data.announcements);
+      }
+    } catch (err) {
+      console.error('Error loading announcements:', err);
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  }
+
+  async function handleCreateAnnouncement(e) {
+    e.preventDefault();
+    if (!announcementForm.title.trim() || !announcementForm.message.trim()) {
+      showNotification('error', 'Judul dan isi pesan dialog wajib diisi.');
+      return;
+    }
+    if (
+      (announcementForm.targetType === 'student' || announcementForm.targetType === 'teacher') &&
+      !announcementForm.targetId
+    ) {
+      showNotification('error', 'Pilih target penerima spesifik terlebih dahulu.');
+      return;
+    }
+
+    setSendingAnnouncement(true);
+    showNotification('loading', 'Mengirim pesan dialog ke penerima...');
+    try {
+      const res = await fetch('/api/admin/announcements', {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify({
+          title: announcementForm.title,
+          message: announcementForm.message,
+          targetType: announcementForm.targetType,
+          targetId: announcementForm.targetId ? Number(announcementForm.targetId) : null,
+          displayMode: announcementForm.displayMode,
+          severity: announcementForm.severity,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showNotification('success', `Pesan dialog "${announcementForm.title}" berhasil dikirim!`);
+        setAnnouncementForm({
+          title: '',
+          message: '',
+          targetType: 'all',
+          targetId: '',
+          displayMode: 'once',
+          severity: 'info',
+        });
+        await loadAnnouncements();
+      } else {
+        showNotification('error', data.error || 'Gagal mengirim pesan dialog.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    } finally {
+      setSendingAnnouncement(false);
+    }
+  }
+
+  async function handleDeleteAnnouncement(id, title) {
+    if (
+      !window.confirm(
+        `Hapus pesan dialog "${title}"? Modal ini tidak akan muncul lagi di layar user/guru.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/announcements/${id}`, {
+        method: 'DELETE',
+        headers: adminHeaders(),
+      });
+      if (res.ok) {
+        showNotification('success', `Pesan dialog "${title}" berhasil dihapus.`);
+        await loadAnnouncements();
+      } else {
+        const data = await res.json();
+        showNotification('error', data.error || 'Gagal menghapus pesan dialog.');
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+    }
+  }
+
+  async function handleOpenAnnouncementViews(ann) {
+    setAnnouncementViewersModal({
+      show: true,
+      loading: true,
+      announcement: ann,
+      views: [],
+    });
+    try {
+      const res = await fetch(`/api/admin/announcements/${ann.id}/views`, {
+        headers: adminHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setAnnouncementViewersModal({
+          show: true,
+          loading: false,
+          announcement: data.announcement || ann,
+          views: data.views || [],
+        });
+      } else {
+        showNotification('error', data.error || 'Gagal memuat daftar pembaca.');
+        setAnnouncementViewersModal((prev) => ({ ...prev, loading: false }));
+      }
+    } catch (err) {
+      showNotification('error', err.message);
+      setAnnouncementViewersModal((prev) => ({ ...prev, loading: false }));
+    }
+  }
 
   async function loadPhotos() {
     setLoadingPhotos(true);
@@ -1364,6 +1508,29 @@ export default function AdminPanel() {
               </div>
               <span className="bg-sky-400/20 text-sky-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
                 {teachersList.length} Akun
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('announcements');
+                loadAnnouncements();
+                loadUsers();
+                loadTeachers();
+              }}
+              className={`flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-xs sm:text-sm font-bold transition whitespace-nowrap cursor-pointer ${
+                activeTab === 'announcements'
+                  ? 'bg-[#1B5299] text-white shadow-soft'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Megaphone size={18} />
+                <span>Pesan & Dialog</span>
+              </div>
+              <span className="bg-amber-400/20 text-amber-300 text-[10px] px-2 py-0.5 rounded-full font-bold">
+                {announcementsList.length} Aktif
               </span>
             </button>
 
@@ -5012,6 +5179,458 @@ export default function AdminPanel() {
                     <div className="text-xs font-mono text-slate-400">
                       File Path / URL: {zoomPhoto.file_url}
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===================================================================
+            TAB: PESAN & DIALOG (BROADCAST / TARGETED MODAL KE SISWA & GURU BK)
+           =================================================================== */}
+        {activeTab === 'announcements' && (
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-extrabold text-[#163A5F] flex items-center gap-2">
+                  <Megaphone size={24} className="text-[#1E5FA8]" />
+                  <span>Pesan Dialog & Pengumuman</span>
+                </h1>
+                <p className="text-xs sm:text-sm text-[#4A6382] mt-0.5">
+                  Kirim popup dialog ke siswa/guru spesifik atau semua user, atur mode sekali lihat / terus-menerus, dan pantau siapa saja yang sudah melihatnya.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadAnnouncements}
+                className="inline-flex items-center gap-2 bg-white hover:bg-[#E8F2FC] border border-[#C5DDF6] text-[#1E5FA8] text-xs font-extrabold px-4 py-2.5 rounded-xl transition cursor-pointer self-start sm:self-auto"
+              >
+                <RefreshCw size={14} className={loadingAnnouncements ? 'animate-spin' : ''} />
+                <span>Refresh Data</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Form Kirim Pesan Dialog Baru */}
+              <div className="lg:col-span-1 bg-white border border-[#C5DDF6] rounded-3xl p-5 sm:p-6 shadow-2xs h-fit">
+                <h2 className="font-extrabold text-base text-[#163A5F] mb-4 flex items-center gap-2">
+                  <Send size={18} className="text-[#1E5FA8]" />
+                  <span>Buat Pesan Dialog Baru</span>
+                </h2>
+
+                <form onSubmit={handleCreateAnnouncement} className="space-y-4 text-xs sm:text-sm">
+                  {/* Target Penerima */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#184B78] mb-1">
+                      Target Penerima:
+                    </label>
+                    <select
+                      value={announcementForm.targetType}
+                      onChange={(e) =>
+                        setAnnouncementForm((prev) => ({
+                          ...prev,
+                          targetType: e.target.value,
+                          targetId: '',
+                        }))
+                      }
+                      className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                    >
+                      <option value="all">Semua User (Siswa & Guru BK)</option>
+                      <option value="all_students">Semua Siswa (Client)</option>
+                      <option value="all_teachers">Semua Guru BK</option>
+                      <option value="student">Siswa Spesifik</option>
+                      <option value="teacher">Guru BK Spesifik</option>
+                    </select>
+                  </div>
+
+                  {/* Dropdown Siswa Spesifik */}
+                  {announcementForm.targetType === 'student' && (
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Pilih Siswa Tujuan:
+                      </label>
+                      <select
+                        required
+                        value={announcementForm.targetId}
+                        onChange={(e) =>
+                          setAnnouncementForm((prev) => ({ ...prev, targetId: e.target.value }))
+                        }
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      >
+                        <option value="">-- Pilih Siswa --</option>
+                        {usersList.map((u) => (
+                          <option key={u.id} value={u.id}>
+                            {u.name} {u.class_name ? `(${u.class_name})` : ''} — ID #{u.id}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Dropdown Guru BK Spesifik */}
+                  {announcementForm.targetType === 'teacher' && (
+                    <div>
+                      <label className="block text-xs font-bold text-[#184B78] mb-1">
+                        Pilih Guru BK Tujuan:
+                      </label>
+                      <select
+                        required
+                        value={announcementForm.targetId}
+                        onChange={(e) =>
+                          setAnnouncementForm((prev) => ({ ...prev, targetId: e.target.value }))
+                        }
+                        className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                      >
+                        <option value="">-- Pilih Guru BK --</option>
+                        {teachersList.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {t.name} (@{t.username})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Mode Kemunculan Modal */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#184B78] mb-1.5">
+                      Mode Kemunculan Modal:
+                    </label>
+                    <div className="grid grid-cols-1 gap-2">
+                      <label
+                        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${
+                          announcementForm.displayMode === 'once'
+                            ? 'bg-[#E8F2FC] border-[#1E5FA8] text-[#163A5F]'
+                            : 'bg-[#F8FBFF] border-[#D5E6F7] text-[#4A6382]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="displayMode"
+                          value="once"
+                          checked={announcementForm.displayMode === 'once'}
+                          onChange={() =>
+                            setAnnouncementForm((prev) => ({ ...prev, displayMode: 'once' }))
+                          }
+                          className="mt-0.5 accent-[#1E5FA8]"
+                        />
+                        <div>
+                          <div className="font-extrabold text-xs">Sekali Lihat</div>
+                          <div className="text-[11px] opacity-80">
+                            Setelah dilihat user, modal otomatis tidak muncul lagi.
+                          </div>
+                        </div>
+                      </label>
+
+                      <label
+                        className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition ${
+                          announcementForm.displayMode === 'persistent'
+                            ? 'bg-amber-50 border-amber-500 text-amber-950'
+                            : 'bg-[#F8FBFF] border-[#D5E6F7] text-[#4A6382]'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="displayMode"
+                          value="persistent"
+                          checked={announcementForm.displayMode === 'persistent'}
+                          onChange={() =>
+                            setAnnouncementForm((prev) => ({ ...prev, displayMode: 'persistent' }))
+                          }
+                          className="mt-0.5 accent-amber-600"
+                        />
+                        <div>
+                          <div className="font-extrabold text-xs flex items-center gap-1">
+                            <Pin size={12} />
+                            <span>Terus-Menerus Sampai Dihapus</span>
+                          </div>
+                          <div className="text-[11px] opacity-80">
+                            Modal selalu muncul setiap user membuka aplikasi sampai Admin menghapusnya.
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Gaya / Prioritas */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#184B78] mb-1">
+                      Gaya / Prioritas Dialog:
+                    </label>
+                    <select
+                      value={announcementForm.severity}
+                      onChange={(e) =>
+                        setAnnouncementForm((prev) => ({ ...prev, severity: e.target.value }))
+                      }
+                      className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                    >
+                      <option value="info">Informasi (Biru)</option>
+                      <option value="important">Penting / Mendesak (Merah)</option>
+                      <option value="warning">Peringatan (Kuning / Oranye)</option>
+                      <option value="success">Kabar Baik / Apresiasi (Hijau)</option>
+                    </select>
+                  </div>
+
+                  {/* Judul */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#184B78] mb-1">
+                      Judul Dialog *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={announcementForm.title}
+                      onChange={(e) =>
+                        setAnnouncementForm((prev) => ({ ...prev, title: e.target.value }))
+                      }
+                      placeholder="Contoh: Jadwal Pemeliharaan Sistem / Info Konseling"
+                      className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                    />
+                  </div>
+
+                  {/* Isi Pesan */}
+                  <div>
+                    <label className="block text-xs font-bold text-[#184B78] mb-1">
+                      Isi Pesan Dialog *
+                    </label>
+                    <textarea
+                      rows={4}
+                      required
+                      value={announcementForm.message}
+                      onChange={(e) =>
+                        setAnnouncementForm((prev) => ({ ...prev, message: e.target.value }))
+                      }
+                      placeholder="Tulis pesan lengkap yang akan tampil di popup dialog penerima..."
+                      className="w-full bg-[#F4F9FF] border border-[#C5DDF6] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-[#163A5F] focus:outline-none focus:border-[#1E5FA8]"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={sendingAnnouncement}
+                    className="w-full bg-[#1E5FA8] hover:bg-[#15467E] disabled:opacity-60 text-white font-extrabold text-xs sm:text-sm py-3 rounded-xl transition flex items-center justify-center gap-2 cursor-pointer shadow-xs"
+                  >
+                    {sendingAnnouncement ? (
+                      <>
+                        <RefreshCw size={16} className="animate-spin" />
+                        <span>Mengirim Dialog...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send size={16} />
+                        <span>Kirim Pesan Dialog</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+              </div>
+
+              {/* Daftar Pesan Dialog Terkirim */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="bg-white border border-[#C5DDF6] rounded-2xl p-4 flex items-center justify-between">
+                  <span className="font-extrabold text-sm sm:text-base text-[#163A5F]">
+                    Daftar Pesan Dialog Aktif ({announcementsList.length})
+                  </span>
+                  <span className="text-xs text-[#4A6382]">
+                    Klik &ldquo;Lihat Pembaca&rdquo; untuk melihat siapa saja yang sudah membuka modal
+                  </span>
+                </div>
+
+                {announcementsList.length === 0 ? (
+                  <div className="bg-white border border-[#C5DDF6] rounded-3xl p-10 text-center text-slate-400 text-xs sm:text-sm">
+                    Belum ada pesan dialog yang dikirim. Gunakan form di samping untuk mengirim pengumuman ke siswa atau Guru BK.
+                  </div>
+                ) : (
+                  <div className="space-y-3.5">
+                    {announcementsList.map((ann) => {
+                      const isPersistent = ann.display_mode === 'persistent';
+                      const sevBadge =
+                        ann.severity === 'important'
+                          ? 'bg-red-100 text-red-700 border-red-200'
+                          : ann.severity === 'warning'
+                          ? 'bg-amber-100 text-amber-800 border-amber-200'
+                          : ann.severity === 'success'
+                          ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                          : 'bg-[#E8F2FC] text-[#1E5FA8] border-[#C5DDF6]';
+
+                      return (
+                        <div
+                          key={ann.id}
+                          className="bg-white border border-[#C5DDF6] rounded-2xl p-5 shadow-2xs space-y-3"
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="space-y-1.5">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span
+                                  className={`text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border ${sevBadge}`}
+                                >
+                                  {ann.severity || 'info'}
+                                </span>
+                                <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full">
+                                  Target: {ann.target_label || ann.target_type}
+                                </span>
+                                <span
+                                  className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full inline-flex items-center gap-1 ${
+                                    isPersistent
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : 'bg-sky-100 text-sky-800'
+                                  }`}
+                                >
+                                  {isPersistent ? (
+                                    <>
+                                      <Pin size={10} />
+                                      <span>Terus-Menerus</span>
+                                    </>
+                                  ) : (
+                                    <span>Sekali Lihat</span>
+                                  )}
+                                </span>
+                              </div>
+                              <h3 className="font-extrabold text-base text-[#163A5F]">
+                                {ann.title}
+                              </h3>
+                            </div>
+
+                            <div className="flex items-center gap-2 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAnnouncementViews(ann)}
+                                className="inline-flex items-center gap-1.5 bg-[#E8F2FC] hover:bg-[#D5E8FA] text-[#1E5FA8] font-extrabold text-xs px-3.5 py-2 rounded-xl transition cursor-pointer"
+                              >
+                                <Eye size={14} />
+                                <span>Lihat Pembaca ({Number(ann.viewer_count || 0)})</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAnnouncement(ann.id, ann.title)}
+                                className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-600 transition cursor-pointer"
+                                title="Hapus pesan dialog"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </div>
+
+                          <p className="text-xs sm:text-sm text-[#243B55] whitespace-pre-line leading-relaxed bg-[#F8FBFF] border border-[#E5F0FB] rounded-xl p-3.5">
+                            {ann.message}
+                          </p>
+
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#6B8BA4] pt-1">
+                            <span>
+                              Dikirim:{' '}
+                              {ann.created_at
+                                ? new Date(ann.created_at).toLocaleString('id-ID')
+                                : '-'}
+                            </span>
+                            <span>
+                              Total tayangan: <strong>{Number(ann.total_impressions || 0)}x</strong>
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Daftar Pembaca (Siapa Saja yang Sudah Melihat Modal) */}
+            {announcementViewersModal.show && (
+              <div
+                className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4"
+                onClick={() =>
+                  setAnnouncementViewersModal({
+                    show: false,
+                    loading: false,
+                    announcement: null,
+                    views: [],
+                  })
+                }
+              >
+                <div
+                  className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="px-6 py-4 bg-[#102A45] text-white flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-[11px] text-sky-300 font-bold uppercase tracking-wider">
+                        Daftar Pembaca Dialog
+                      </div>
+                      <h3 className="font-extrabold text-base leading-snug">
+                        {announcementViewersModal.announcement?.title}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setAnnouncementViewersModal({
+                          show: false,
+                          loading: false,
+                          announcement: null,
+                          views: [],
+                        })
+                      }
+                      className="p-1.5 rounded-xl hover:bg-white/20 transition cursor-pointer"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+
+                  <div className="p-5 overflow-y-auto flex-1 space-y-3">
+                    {announcementViewersModal.loading ? (
+                      <div className="py-10 flex items-center justify-center gap-2 text-xs font-bold text-[#1E5FA8]">
+                        <RefreshCw size={18} className="animate-spin" />
+                        <span>Memuat daftar pembaca...</span>
+                      </div>
+                    ) : announcementViewersModal.views.length === 0 ? (
+                      <div className="py-10 text-center text-xs sm:text-sm text-slate-400">
+                        Belum ada siswa maupun Guru BK yang melihat modal dialog ini.
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        <div className="text-xs font-bold text-[#4A6382]">
+                          Total {announcementViewersModal.views.length} orang sudah melihat pesan ini:
+                        </div>
+                        {announcementViewersModal.views.map((v) => (
+                          <div
+                            key={v.id}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-3.5 rounded-2xl bg-[#F8FBFF] border border-[#D5E6F7]"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className={`text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full ${
+                                  v.viewer_type === 'teacher'
+                                    ? 'bg-purple-100 text-purple-700'
+                                    : 'bg-sky-100 text-sky-700'
+                                }`}
+                              >
+                                {v.viewer_type === 'teacher' ? 'Guru BK' : 'Siswa'}
+                              </span>
+                              <div>
+                                <div className="font-extrabold text-xs sm:text-sm text-[#163A5F]">
+                                  {v.viewer_name}
+                                </div>
+                                <div className="text-[11px] text-[#4A6382]">
+                                  {v.viewer_meta || '-'} • ID #{v.viewer_id}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-left sm:text-right text-[11px] text-[#4A6382]">
+                              <div className="font-bold text-[#1E5FA8]">
+                                Dilihat {Number(v.view_count || 1)}x
+                              </div>
+                              <div>
+                                Terakhir:{' '}
+                                {v.last_viewed_at
+                                  ? new Date(v.last_viewed_at).toLocaleString('id-ID')
+                                  : '-'}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

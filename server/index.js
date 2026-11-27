@@ -1078,8 +1078,10 @@ app.post('/api/teacher/login', async (req, res) => {
     }
 
     addServerLog('TEACHER', `Guru BK (${teacherName} / @${activeUser}) berhasil login.`);
+    const teacherId = teacherRes.rows[0]?.id || null;
     const token = createToken({
       role: teacherRole,
+      teacherId,
       username: activeUser,
       name: teacherName,
     });
@@ -1094,6 +1096,7 @@ app.post('/api/teacher/login', async (req, res) => {
     res.json({
       ok: true,
       token,
+      id: teacherId,
       role: teacherRole,
       username: activeUser,
       name: teacherName,
@@ -2410,6 +2413,307 @@ app.delete('/api/admin/photos/:id', requireTeacherOrAdmin, async (req, res) => {
   } catch (err) {
     addServerLog('ERROR', `delete photo error: ${err.message}`);
     res.status(500).json({ error: 'Gagal menghapus foto referensi.' });
+  }
+});
+
+// ============================================================================
+// ADMIN BROADCAST / DIALOG ANNOUNCEMENTS (Pesan Dialog ke Siswa / Guru BK)
+// ============================================================================
+
+async function resolveTeacherFromAuth(authUser) {
+  if (!authUser || authUser.role !== 'guru_bk') return null;
+  if (authUser.teacherId) {
+    const res = await query(`SELECT id, name, username FROM teachers WHERE id = $1 LIMIT 1`, [
+      Number(authUser.teacherId),
+    ]);
+    if (res.rows[0]) return res.rows[0];
+  }
+  if (authUser.username) {
+    const res = await query(
+      `SELECT id, name, username FROM teachers WHERE LOWER(username) = LOWER($1) LIMIT 1`,
+      [authUser.username]
+    );
+    if (res.rows[0]) return res.rows[0];
+  }
+  return null;
+}
+
+// 1. Admin: List semua pesan dialog beserta jumlah pembaca
+app.get('/api/admin/announcements', requireAdmin, async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT a.*,
+        (SELECT COUNT(*) FROM admin_announcement_views v WHERE v.announcement_id = a.id) AS viewer_count,
+        (SELECT COALESCE(SUM(v.view_count), 0) FROM admin_announcement_views v WHERE v.announcement_id = a.id) AS total_impressions
+      FROM admin_announcements a
+      ORDER BY a.id DESC
+    `);
+    res.json({ announcements: result.rows });
+  } catch (err) {
+    addServerLog('ERROR', `get announcements error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat daftar pesan dialog.' });
+  }
+});
+
+// 2. Admin: Buat pesan dialog baru (ke semua user / semua siswa / semua guru / siswa spesifik / guru spesifik)
+app.post('/api/admin/announcements', requireAdmin, async (req, res) => {
+  try {
+    const title = String(req.body?.title || '').trim().slice(0, 200);
+    const message = String(req.body?.message || '').trim().slice(0, 4000);
+    const targetType = String(req.body?.targetType || 'all').trim();
+    const rawTargetId = req.body?.targetId;
+    const displayMode = req.body?.displayMode === 'persistent' ? 'persistent' : 'once';
+    const allowedSeverities = new Set(['info', 'warning', 'important', 'success']);
+    const severity = allowedSeverities.has(req.body?.severity) ? req.body.severity : 'info';
+
+    if (!title || !message) {
+      return res.status(400).json({ error: 'Judul dan isi pesan dialog wajib diisi.' });
+    }
+
+    const allowedTargets = new Set(['all', 'all_students', 'all_teachers', 'student', 'teacher']);
+    if (!allowedTargets.has(targetType)) {
+      return res.status(400).json({ error: 'Target penerima tidak valid.' });
+    }
+
+    let targetId = null;
+    let targetLabel = 'Semua User (Siswa & Guru BK)';
+
+    if (targetType === 'all_students') {
+      targetLabel = 'Semua Siswa (Client)';
+    } else if (targetType === 'all_teachers') {
+      targetLabel = 'Semua Guru BK';
+    } else if (targetType === 'student') {
+      targetId = Number(rawTargetId);
+      if (!targetId) {
+        return res.status(400).json({ error: 'Pilih siswa tujuan terlebih dahulu.' });
+      }
+      const userRes = await query(`SELECT id, name, class_name FROM users WHERE id = $1 LIMIT 1`, [
+        targetId,
+      ]);
+      if (userRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Siswa tujuan tidak ditemukan.' });
+      }
+      const u = userRes.rows[0];
+      targetLabel = `Siswa: ${u.name}${u.class_name ? ` (${u.class_name})` : ''}`;
+    } else if (targetType === 'teacher') {
+      targetId = Number(rawTargetId);
+      if (!targetId) {
+        return res.status(400).json({ error: 'Pilih Guru BK tujuan terlebih dahulu.' });
+      }
+      const tRes = await query(`SELECT id, name, username FROM teachers WHERE id = $1 LIMIT 1`, [
+        targetId,
+      ]);
+      if (tRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Akun Guru BK tujuan tidak ditemukan.' });
+      }
+      const t = tRes.rows[0];
+      targetLabel = `Guru BK: ${t.name} (@${t.username})`;
+    }
+
+    const insertRes = await query(
+      `INSERT INTO admin_announcements (title, message, target_type, target_id, target_label, display_mode, severity, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
+       RETURNING *`,
+      [title, message, targetType, targetId, targetLabel, displayMode, severity]
+    );
+
+    const created = insertRes.rows[0];
+    addServerLog(
+      'ADMIN',
+      `Admin mengirim pesan dialog "${title}" ke ${targetLabel} (Mode: ${displayMode === 'persistent' ? 'Terus-Menerus' : 'Sekali Lihat'}).`
+    );
+    res.status(201).json({ ok: true, announcement: created });
+  } catch (err) {
+    addServerLog('ERROR', `create announcement error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal mengirim pesan dialog.' });
+  }
+});
+
+// 3. Admin: Lihat daftar siapa saja yang sudah melihat modal dialog tertentu
+app.get('/api/admin/announcements/:id/views', requireAdmin, async (req, res) => {
+  try {
+    const annId = Number(req.params.id);
+    const [annRes, viewsRes] = await Promise.all([
+      query(`SELECT * FROM admin_announcements WHERE id = $1 LIMIT 1`, [annId]),
+      query(
+        `SELECT * FROM admin_announcement_views WHERE announcement_id = $1 ORDER BY last_viewed_at DESC, id DESC`,
+        [annId]
+      ),
+    ]);
+    if (annRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Pesan dialog tidak ditemukan.' });
+    }
+    res.json({
+      announcement: annRes.rows[0],
+      views: viewsRes.rows,
+    });
+  } catch (err) {
+    addServerLog('ERROR', `get announcement views error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal memuat daftar pembaca pesan dialog.' });
+  }
+});
+
+// 4. Admin: Hapus pesan dialog (langsung menghentikan modal persistent di layar user)
+app.delete('/api/admin/announcements/:id', requireAdmin, async (req, res) => {
+  try {
+    const annId = Number(req.params.id);
+    await query(`DELETE FROM admin_announcement_views WHERE announcement_id = $1`, [annId]);
+    await query(`DELETE FROM admin_announcements WHERE id = $1`, [annId]);
+    addServerLog('ADMIN', `Admin menghapus pesan dialog ID: ${annId}`);
+    res.json({ ok: true });
+  } catch (err) {
+    addServerLog('ERROR', `delete announcement error: ${err.message}`);
+    res.status(500).json({ error: 'Gagal menghapus pesan dialog.' });
+  }
+});
+
+// 5. Client (Siswa) / Guru BK: Ambil daftar modal dialog aktif untuk user saat ini
+app.get('/api/announcements/active', async (req, res) => {
+  try {
+    const role = String(req.query.role || 'student').trim().toLowerCase();
+
+    if (role === 'teacher') {
+      const authUser = getAuthUser(req);
+      const teacher = await resolveTeacherFromAuth(authUser);
+      if (!teacher) {
+        return res.json({ announcements: [] });
+      }
+      const annRes = await query(
+        `SELECT a.*
+         FROM admin_announcements a
+         WHERE a.is_active = 1
+           AND (
+             a.target_type IN ('all', 'all_teachers')
+             OR (a.target_type = 'teacher' AND a.target_id = $1)
+           )
+           AND (
+             a.display_mode = 'persistent'
+             OR NOT EXISTS (
+               SELECT 1 FROM admin_announcement_views v
+               WHERE v.announcement_id = a.id
+                 AND v.viewer_type = 'teacher'
+                 AND v.viewer_id = $2
+             )
+           )
+         ORDER BY a.id DESC`,
+        [teacher.id, teacher.id]
+      );
+      return res.json({ announcements: annRes.rows });
+    }
+
+    // Student / Client mode
+    const userId = Number(req.query.userId || 0);
+    const deviceToken = String(
+      req.headers['x-device-token'] || req.query.deviceToken || ''
+    ).trim();
+
+    if (userId > 0 && deviceToken) {
+      const student = await verifyUserOwnership(userId, deviceToken);
+      if (!student) {
+        return res.json({ announcements: [] });
+      }
+      const annRes = await query(
+        `SELECT a.*
+         FROM admin_announcements a
+         WHERE a.is_active = 1
+           AND (
+             a.target_type IN ('all', 'all_students')
+             OR (a.target_type = 'student' AND a.target_id = $1)
+           )
+           AND (
+             a.display_mode = 'persistent'
+             OR NOT EXISTS (
+               SELECT 1 FROM admin_announcement_views v
+               WHERE v.announcement_id = a.id
+                 AND v.viewer_type = 'student'
+                 AND v.viewer_id = $2
+             )
+           )
+         ORDER BY a.id DESC`,
+        [student.id, student.id]
+      );
+      return res.json({ announcements: annRes.rows });
+    }
+
+    res.json({ announcements: [] });
+  } catch (err) {
+    console.error('[Announcements Active Error]', err.message);
+    res.status(500).json({ error: 'Gagal memuat pesan dialog aktif.' });
+  }
+});
+
+// 6. Client (Siswa) / Guru BK: Catat bahwa user telah melihat modal dialog
+app.post('/api/announcements/:id/view', async (req, res) => {
+  try {
+    const annId = Number(req.params.id);
+    const role = String(req.body?.role || 'student').trim().toLowerCase();
+
+    const annCheck = await query(`SELECT id FROM admin_announcements WHERE id = $1 LIMIT 1`, [
+      annId,
+    ]);
+    if (annCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Pesan dialog tidak ditemukan.' });
+    }
+
+    let viewerType = null;
+    let viewerId = null;
+    let viewerName = '';
+    let viewerMeta = '';
+
+    if (role === 'teacher') {
+      const authUser = getAuthUser(req);
+      const teacher = await resolveTeacherFromAuth(authUser);
+      if (!teacher) {
+        return res.status(401).json({ error: 'Autentikasi Guru BK diperlukan.' });
+      }
+      viewerType = 'teacher';
+      viewerId = teacher.id;
+      viewerName = teacher.name;
+      viewerMeta = `@${teacher.username}`;
+    } else {
+      const userId = Number(req.body?.userId || 0);
+      const deviceToken = String(
+        req.headers['x-device-token'] || req.body?.deviceToken || ''
+      ).trim();
+      const student = await verifyUserOwnership(userId, deviceToken);
+      if (!student) {
+        return res.status(401).json({ error: 'Autentikasi siswa diperlukan.' });
+      }
+      viewerType = 'student';
+      viewerId = student.id;
+      viewerName = student.name;
+      viewerMeta = student.class_name || 'Umum';
+    }
+
+    const existing = await query(
+      `SELECT id FROM admin_announcement_views
+       WHERE announcement_id = $1 AND viewer_type = $2 AND viewer_id = $3
+       LIMIT 1`,
+      [annId, viewerType, viewerId]
+    );
+
+    if (existing.rows.length > 0) {
+      await query(
+        `UPDATE admin_announcement_views
+         SET view_count = view_count + 1,
+             viewer_name = $1,
+             viewer_meta = $2,
+             last_viewed_at = CURRENT_TIMESTAMP
+         WHERE id = $3`,
+        [viewerName, viewerMeta, existing.rows[0].id]
+      );
+    } else {
+      await query(
+        `INSERT INTO admin_announcement_views (announcement_id, viewer_type, viewer_id, viewer_name, viewer_meta, view_count)
+         VALUES ($1, $2, $3, $4, $5, 1)`,
+        [annId, viewerType, viewerId, viewerName, viewerMeta]
+      );
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[Announcements View Record Error]', err.message);
+    res.status(500).json({ error: 'Gagal mencatat status baca pesan.' });
   }
 });
 

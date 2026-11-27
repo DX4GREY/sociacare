@@ -164,3 +164,30 @@ CREATE TABLE IF NOT EXISTS teachers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS admin_announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    target_type VARCHAR(30) NOT NULL DEFAULT 'all',
+    target_id INTEGER DEFAULT NULL,
+    target_label VARCHAR(160) DEFAULT '',
+    display_mode VARCHAR(20) NOT NULL DEFAULT 'once',
+    severity VARCHAR(20) NOT NULL DEFAULT 'info',
+    is_active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS admin_announcement_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    announcement_id INTEGER NOT NULL,
+    viewer_type VARCHAR(20) NOT NULL,
+    viewer_id INTEGER NOT NULL,
+    viewer_name VARCHAR(150) NOT NULL,
+    viewer_meta VARCHAR(150) DEFAULT '',
+    view_count INTEGER DEFAULT 1,
+    first_viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(announcement_id, viewer_type, viewer_id),
+    FOREIGN KEY (announcement_id) REFERENCES admin_announcements(id) ON DELETE CASCADE
+);
